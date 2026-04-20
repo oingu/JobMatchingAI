@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+pytest
+alembic
+httpx
+pdfplumber
+python-multipart
+scikit-learn
+numpy
+pytesseract
+Pillow
+pdf2image
+google-genai
+python-dotenv
