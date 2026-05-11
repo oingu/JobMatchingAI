@@ -2,3 +2,7 @@
 __pycache__/
 *.pyc
 job_matching.db
+.env
+.next/
+uploads/
+.pytest_cache/

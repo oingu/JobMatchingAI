@@ -2,11 +2,12 @@ import asyncio
 from contextlib import asynccontextmanager, suppress
 import os
 import uuid
+from datetime import timedelta
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -44,9 +45,11 @@ from app.services.auth import authenticate, get_current_user, issue_token, requi
 from app.services.audit import audit
 from app.services.cv_parser import parse_cv as regex_parse_cv
 from app.services.cv_parser_gemini import parse_cv_with_gemini, GeminiParseResult
+from app.services.cv_parser_openrouter import parse_cv_with_openrouter
 from app.services.behavior import reset_no_response_streak, update_all_candidates_behavior, update_user_behavior_state
 from app.services.evaluation import compare_baseline_vs_improved, engagement_metrics, precision_recall_at_k
 from app.services.events import enqueue_event, process_next_event, retry_failed_event
+from app.services.email_tracking import verify_email_click_token
 from app.services.email import build_otp_email, is_email_configured, send_email
 from app.services.rate_limiter import check_rate_limit
 from app.services.security import hash_password
@@ -563,14 +566,21 @@ async def upload_cv(
     if len(contents) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 10 MB).")
 
-    gemini_error = ""
-    if settings.cv_parser_mode == "gemini" or (
+    parser_error = ""
+    if settings.cv_parser_mode == "openrouter" or (
+        settings.cv_parser_mode == "auto" and settings.openrouter_api_key
+    ):
+        result = parse_cv_with_openrouter(contents)
+        extraction = result.extraction
+        parser_used = result.parser_used
+        parser_error = result.openrouter_error
+    elif settings.cv_parser_mode == "gemini" or (
         settings.cv_parser_mode == "auto" and settings.gemini_api_key
     ):
         result = parse_cv_with_gemini(contents)
         extraction = result.extraction
         parser_used = result.parser_used
-        gemini_error = result.gemini_error
+        parser_error = result.gemini_error
     else:
         extraction = regex_parse_cv(contents)
         parser_used = "regex"
@@ -580,7 +590,7 @@ async def upload_cv(
             "parsed": extraction.to_dict(),
             "profile_updated": False,
             "parser": parser_used,
-            "gemini_error": gemini_error,
+            "gemini_error": parser_error,
             "message": "Could not extract skills from the CV. Please update your profile manually.",
         })
 
@@ -634,7 +644,7 @@ async def upload_cv(
         "event_id": event.id,
         "profile_updated": True,
         "parser": parser_used,
-        "gemini_error": gemini_error,
+        "gemini_error": parser_error,
     })
 
 
@@ -972,6 +982,7 @@ def create_job(payload: JobCreate, db: Session = Depends(get_db), current_user: 
     job = Job(
         recruiter_id=payload.recruiter_id,
         title=payload.title,
+        brief_description=payload.brief_description,
         required_skills=[s.model_dump() for s in payload.required_skills],
         location=payload.location,
         salary_min=payload.salary_min,
@@ -1030,6 +1041,7 @@ def list_my_jobs(
             "id": j.id,
             "recruiter_id": j.recruiter_id,
             "title": j.title,
+            "brief_description": j.brief_description,
             "required_skills": j.required_skills or [],
             "location": j.location,
             "salary_min": j.salary_min,
@@ -1077,6 +1089,7 @@ def list_saved_jobs(
         result.append({
             "id": j.id,
             "title": j.title,
+            "brief_description": j.brief_description,
             "required_skills": j.required_skills or [],
             "location": j.location,
             "salary_min": j.salary_min,
@@ -1106,6 +1119,7 @@ def get_job(job_id: int, db: Session = Depends(get_db), current_user: User = Dep
         "id": job.id,
         "recruiter_id": job.recruiter_id,
         "title": job.title,
+        "brief_description": job.brief_description,
         "required_skills": job.required_skills or [],
         "location": job.location,
         "salary_min": job.salary_min,
@@ -1134,6 +1148,7 @@ def update_job(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found or not owned by you.")
     job.title = payload.title
+    job.brief_description = payload.brief_description
     job.required_skills = [s.model_dump() for s in payload.required_skills]
     job.location = payload.location
     job.salary_min = payload.salary_min
@@ -1253,6 +1268,7 @@ def list_my_applications(
             "job_id": a.job_id,
             "job_title": job.title if job else "Deleted",
             "company": company,
+            **(_get_company_contact(db, job.recruiter_id) if job else {"company_phone": "", "company_website": "", "company_avatar_url": ""}),
             "location": job.location if job else "",
             "cover_letter": a.cover_letter,
             "status": a.status,
@@ -1563,6 +1579,7 @@ def _get_company_contact(db: Session, recruiter_id: int) -> dict:
     return {
         "company_phone": rp.company_phone if rp else "",
         "company_website": rp.company_website if rp else "",
+        "company_avatar_url": rp.avatar_url if rp else "",
     }
 
 
@@ -1655,6 +1672,16 @@ def candidate_feed(
         .all()
     )
     jobs = {job.id: job for job in db.query(Job).filter(Job.id.in_([row.job_id for row in recommendations])).all()}
+    now_ts = now_utc()
+    valid_recommendations = [
+        row
+        for row in recommendations
+        if row.job_id in jobs
+        and (
+            jobs[row.job_id].end_date is None
+            or as_utc(jobs[row.job_id].end_date) >= now_ts
+        )
+    ]
     return api_ok({
         "candidate_id": candidate_id,
         "items": [
@@ -1662,6 +1689,7 @@ def candidate_feed(
                 "job_id": row.job_id,
                 "recruiter_id": jobs[row.job_id].recruiter_id if row.job_id in jobs else None,
                 "job_title": jobs[row.job_id].title if row.job_id in jobs else "Unknown",
+                "brief_description": jobs[row.job_id].brief_description if row.job_id in jobs else "",
                 "score": row.final_score,
                 "skill_match": row.skill_match,
                 "preference_match": row.preference_match,
@@ -1678,9 +1706,9 @@ def candidate_feed(
                 "end_date": jobs[row.job_id].end_date.isoformat() if row.job_id in jobs and jobs[row.job_id].end_date else None,
                 "created_at": jobs[row.job_id].created_at.isoformat() if row.job_id in jobs and jobs[row.job_id].created_at else None,
             }
-            for row in recommendations
+            for row in valid_recommendations
         ],
-    }, meta={"offset": max(offset, 0), "limit": effective_limit, "count": len(recommendations), "top_k": effective_limit})
+    }, meta={"offset": max(offset, 0), "limit": effective_limit, "count": len(valid_recommendations), "top_k": effective_limit})
 
 
 @app.get("/activity/{candidate_id}")
@@ -1748,6 +1776,84 @@ def list_notifications(
             for row in notifications
         ],
     }, meta={"offset": max(offset, 0), "limit": min(max(limit, 1), 200), "count": len(notifications)})
+
+
+@app.get("/email/track-company-click")
+def track_company_click(token: str, db: Session = Depends(get_db)) -> RedirectResponse:
+    payload = verify_email_click_token(token)
+    if not payload:
+        raise HTTPException(status_code=400, detail="Invalid or expired tracking token.")
+
+    candidate_id = payload["candidate_id"]
+    job_id = payload["job_id"]
+    target_url = payload["target_url"]
+    if not target_url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Invalid target URL.")
+
+    candidate = db.query(User).filter(User.id == candidate_id, User.role == "candidate").first()
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found.")
+
+    cooldown_hours = max(1, settings.email_click_cooldown_hours)
+    cutoff = now_utc() - timedelta(hours=cooldown_hours)
+    recent_clicks = (
+        db.query(InteractionLog)
+        .filter(
+            InteractionLog.user_id == candidate_id,
+            InteractionLog.job_id == job_id,
+            InteractionLog.event_type == "click",
+            InteractionLog.created_at >= cutoff,
+        )
+        .all()
+    )
+    already_counted = any(
+        isinstance(row.event_metadata, dict) and row.event_metadata.get("source") == "email_company_link"
+        for row in recent_clicks
+    )
+
+    db.add(
+        InteractionLog(
+            user_id=candidate_id,
+            job_id=job_id,
+            event_type="click",
+            event_metadata={"source": "email_company_link", "target": target_url},
+            created_at=now_utc(),
+        )
+    )
+
+    if not already_counted:
+        profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == candidate_id).first()
+        if profile:
+            profile.activity_score = min(1.0, (profile.activity_score or 0.0) + settings.email_click_boost)
+            profile.no_response_streak = max(0, profile.no_response_streak - 1)
+            profile.updated_at = now_utc()
+
+    db.commit()
+    return RedirectResponse(url=target_url, status_code=302)
+
+
+@app.post("/notifications/retry-pending-emails")
+def retry_pending_emails(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Retry sending email for notifications that were created but email failed (status=SENT)."""
+    from app.services.email import build_notification_email, is_email_configured, send_email
+    notifications = db.query(Notification).filter(Notification.status == "SENT").all()
+    results = []
+    for n in notifications:
+        user = db.query(User).filter(User.id == n.user_id).first()
+        if not user:
+            continue
+        if not is_email_configured():
+            break
+        text, html = build_notification_email(n.title, n.body)
+        sent = send_email(user.email, f"[JobMatch AI] {n.title}", text, html)
+        if sent:
+            n.status = "EMAIL_SENT"
+            db.commit()
+        results.append({"notification_id": n.id, "user_id": n.user_id, "email_sent": sent})
+    return api_ok({"retried": len(results), "results": results})
 
 
 @app.post("/evaluate")

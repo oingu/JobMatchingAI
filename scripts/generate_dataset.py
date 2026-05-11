@@ -1,12 +1,20 @@
 """
 Generate synthetic dataset directly into local SQLite DB for evaluation.
 
+Creates a fresh database with:
+- 10 recruiters with company profiles
+- 150 candidates with skill vectors (proficiency 1-5)
+- 60 jobs with required skill vectors
+- 1500+ interaction logs (view/click/apply/login)
+- Realistic apply patterns so Precision/Recall metrics are meaningful
+
 Usage:
   python scripts/generate_dataset.py
 """
 
 from __future__ import annotations
 
+import os
 import sys
 import random
 from datetime import datetime, timedelta
@@ -16,39 +24,61 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+# Force fast local matching during dataset generation (no API calls)
+os.environ["MATCHING_STRATEGY"] = "proficiency"
+# Disable email sending to prevent spam during dataset generation
+os.environ["SMTP_HOST"] = ""
+os.environ["SMTP_USER"] = ""
+os.environ["SMTP_PASS"] = ""
+
 from app.database import Base, SessionLocal, engine
-from app.models import CandidateProfile, InteractionLog, Job, RecruiterProfile, User
+from app.models import CandidateProfile, Event, InteractionLog, Job, RecruiterProfile, User
+from app.services.events import enqueue_event
 from app.utils.time import now_utc
 
 SKILLS = [
-    "python",
-    "sql",
-    "fastapi",
-    "java",
-    "spring",
-    "javascript",
-    "react",
-    "docker",
-    "kafka",
+    "python", "sql", "fastapi", "java", "spring", "javascript", "react",
+    "docker", "kafka", "kubernetes", "typescript", "node.js", "django",
+    "postgresql", "redis", "go", "c++", "aws", "git", "linux",
+    "mongodb", "flask", "angular", "vue", "tensorflow", "pytorch",
+    "elasticsearch", "graphql", "ci/cd", "agile",
 ]
-LOCATIONS = ["hanoi", "hcm", "danang"]
+LOCATIONS = ["hanoi", "hcm", "danang", "remote", "hai phong"]
 LEVELS = ["junior", "middle", "senior"]
+JOB_TITLES = [
+    "Backend Engineer", "Frontend Developer", "Fullstack Developer",
+    "Data Engineer", "ML Engineer", "DevOps Engineer", "QA Engineer",
+    "Mobile Developer", "Cloud Architect", "Software Architect",
+    "Site Reliability Engineer", "Security Engineer",
+]
 
 
-def sample_skills(min_k: int = 2, max_k: int = 4) -> str:
+def sample_skills_json(min_k: int = 2, max_k: int = 5) -> list[dict]:
+    """Return JSON skill list [{name, level}] matching the data model."""
     k = random.randint(min_k, max_k)
-    return ",".join(random.sample(SKILLS, k))
+    return [
+        {"name": skill, "level": random.randint(1, 5)}
+        for skill in random.sample(SKILLS, k)
+    ]
 
 
 def main() -> None:
     random.seed(42)
+
+    # Remove existing DB and recreate for clean dataset
+    db_path = ROOT / "job_matching.db"
+    if db_path.exists():
+        os.remove(db_path)
+        print(f"Removed existing {db_path}")
+
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         recruiters = []
         candidates = []
 
-        for i in range(5):
+        # --- Recruiters ---
+        for i in range(10):
             user = User(
                 name=f"Recruiter {i + 1}",
                 email=f"recruiter{i + 1}@dataset.local",
@@ -58,66 +88,142 @@ def main() -> None:
             )
             db.add(user)
             db.flush()
-            db.add(RecruiterProfile(user_id=user.id, company_name=f"Company {i + 1}", updated_at=now_utc()))
+            db.add(RecruiterProfile(
+                user_id=user.id,
+                company_name=f"Company {i + 1}",
+                company_website=f"https://company{i+1}.com",
+                updated_at=now_utc(),
+            ))
             recruiters.append(user)
 
-        for i in range(40):
+        # --- Candidates ---
+        for i in range(150):
+            days_ago = random.randint(0, 60)
+            status = "ACTIVE"
+            activity = random.uniform(0.3, 1.0)
+            if days_ago > 40:
+                status = random.choice(["PASSIVE", "INACTIVE"])
+                activity = random.uniform(0.05, 0.3)
+            elif days_ago > 20:
+                status = random.choice(["ACTIVE", "PASSIVE"])
+                activity = random.uniform(0.2, 0.6)
+
             user = User(
                 name=f"Candidate {i + 1}",
                 email=f"candidate{i + 1}@dataset.local",
                 password="secret123",
                 role="candidate",
-                is_online=bool(i % 3 == 0),
+                is_online=bool(i % 4 == 0),
             )
             db.add(user)
             db.flush()
             db.add(
                 CandidateProfile(
                     user_id=user.id,
-                    skills=sample_skills(),
+                    skills=sample_skills_json(2, 6),
                     experience_level=random.choice(LEVELS),
                     preferred_locations=random.choice(LOCATIONS),
-                    preferred_salary_min=random.randint(700, 2000),
-                    activity_score=random.uniform(0.2, 1.0),
-                    status="ACTIVE",
-                    last_login_at=now_utc() - timedelta(days=random.randint(0, 45)),
+                    preferred_salary_min=random.randint(500, 2500),
+                    activity_score=round(activity, 3),
+                    status=status,
+                    no_response_streak=random.randint(0, 8) if status != "ACTIVE" else random.randint(0, 2),
+                    last_login_at=now_utc() - timedelta(days=days_ago),
                     updated_at=now_utc(),
                 )
             )
             candidates.append(user)
 
-        for i in range(30):
+        # --- Jobs ---
+        jobs = []
+        for i in range(60):
             recruiter = random.choice(recruiters)
-            db.add(
-                Job(
-                    recruiter_id=recruiter.id,
-                    title=f"Job {i + 1}",
-                    required_skills=sample_skills(),
-                    location=random.choice(LOCATIONS),
-                    salary_min=random.randint(700, 1500),
-                    salary_max=random.randint(1600, 3200),
-                    experience_level=random.choice(LEVELS),
-                )
+            job = Job(
+                recruiter_id=recruiter.id,
+                title=f"{random.choice(JOB_TITLES)} #{i + 1}",
+                brief_description=f"Looking for talented engineers. Position {i+1}.",
+                required_skills=sample_skills_json(2, 5),
+                location=random.choice(LOCATIONS),
+                salary_min=random.randint(500, 1500),
+                salary_max=random.randint(1600, 4000),
+                experience_level=random.choice(LEVELS),
             )
+            db.add(job)
+            jobs.append(job)
 
         db.commit()
+        # Refresh to get IDs
+        for j in jobs:
+            db.refresh(j)
 
-        # Add historical interactions for engagement metrics.
-        jobs = db.query(Job).all()
+        # --- Interactions (realistic patterns) ---
+        # Each candidate views several jobs, clicks some, applies to fewer
+        interaction_count = 0
         for user in candidates:
-            for _ in range(random.randint(2, 10)):
-                job = random.choice(jobs)
-                db.add(
-                    InteractionLog(
+            n_views = random.randint(3, 15)
+            viewed_jobs = random.sample(jobs, min(n_views, len(jobs)))
+            for job in viewed_jobs:
+                db.add(InteractionLog(
+                    user_id=user.id,
+                    job_id=job.id,
+                    event_type="view",
+                    event_metadata={},
+                    created_at=now_utc() - timedelta(days=random.randint(0, 30)),
+                ))
+                interaction_count += 1
+
+                # 40% chance to click after viewing
+                if random.random() < 0.4:
+                    db.add(InteractionLog(
                         user_id=user.id,
                         job_id=job.id,
-                        event_type=random.choice(["view", "click", "apply"]),
+                        event_type="click",
                         event_metadata={},
-                        created_at=now_utc() - timedelta(days=random.randint(0, 30)),
-                    )
-                )
+                        created_at=now_utc() - timedelta(days=random.randint(0, 25)),
+                    ))
+                    interaction_count += 1
+
+                    # 30% chance to apply after clicking
+                    if random.random() < 0.3:
+                        db.add(InteractionLog(
+                            user_id=user.id,
+                            job_id=job.id,
+                            event_type="apply",
+                            event_metadata={},
+                            created_at=now_utc() - timedelta(days=random.randint(0, 20)),
+                        ))
+                        interaction_count += 1
+
+            # Login events
+            for _ in range(random.randint(1, 5)):
+                db.add(InteractionLog(
+                    user_id=user.id,
+                    job_id=None,
+                    event_type="login",
+                    event_metadata={},
+                    created_at=now_utc() - timedelta(days=random.randint(0, 30)),
+                ))
+                interaction_count += 1
+
         db.commit()
-        print("Synthetic dataset generated.")
+
+        # --- Trigger matching events for all jobs ---
+        event_count = 0
+        for job in jobs:
+            db.refresh(job)
+            enqueue_event(db, "job_created", {
+                "job_id": job.id,
+                "recruiter_id": job.recruiter_id,
+                "timestamp": now_utc().isoformat(),
+            })
+            event_count += 1
+
+        print(f"\n✅ Synthetic dataset generated successfully!")
+        print(f"   Recruiters:    {len(recruiters)}")
+        print(f"   Candidates:    {len(candidates)}")
+        print(f"   Jobs:          {len(jobs)}")
+        print(f"   Interactions:  {interaction_count}")
+        print(f"   Events:        {event_count}")
+
     finally:
         db.close()
 

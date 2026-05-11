@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { Building2, Globe, Mail, MapPin, Phone, ShieldCheck } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { apiRequest } from "@/lib/api";
@@ -43,7 +45,7 @@ export default function RecruiterPublicProfilePage() {
   useEffect(() => {
     const s = getSession();
     if (!s) {
-      router.replace("/login");
+      setLoading(false);
       return;
     }
     setSession(s);
@@ -59,7 +61,21 @@ export default function RecruiterPublicProfilePage() {
 
   const role = useMemo<UserRole>(() => session?.role ?? "candidate", [session?.role]);
   const mapQuery = encodeURIComponent(data?.company_address || data?.jobs?.[0]?.location || "");
-  if (!session) return null;
+  if (!session) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Alert className="max-w-md">
+          <AlertTitle>Phiên đăng nhập không tồn tại</AlertTitle>
+          <AlertDescription>
+            Bạn chưa đăng nhập hoặc token đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.
+          </AlertDescription>
+          <div className="mt-3">
+            <Button onClick={() => router.push("/login")}>Đăng nhập</Button>
+          </div>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <AppShell role={role} title="Recruiter Profile">

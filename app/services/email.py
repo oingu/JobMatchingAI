@@ -34,17 +34,25 @@ def send_email(to_email: str, subject: str, body_text: str, body_html: str | Non
     if body_html:
         msg.attach(MIMEText(body_html, "html"))
 
+    # Strip spaces from App Password (Gmail shows them in groups of 4 but SMTP needs clean string)
+    smtp_pass = settings.smtp_pass.replace(" ", "")
     try:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as server:
             server.ehlo()
             server.starttls()
             server.ehlo()
-            server.login(settings.smtp_user, settings.smtp_pass)
+            server.login(settings.smtp_user, smtp_pass)
             server.sendmail(settings.smtp_user, to_email, msg.as_string())
         logger.info("Email sent to %s: %s", to_email, subject)
         return True
+    except smtplib.SMTPAuthenticationError as exc:
+        logger.error("SMTP authentication failed — check SMTP_USER/SMTP_PASS in .env: %s", exc)
+        return False
+    except smtplib.SMTPException as exc:
+        logger.error("SMTP error sending to %s: %s", to_email, exc)
+        return False
     except Exception:
-        logger.exception("Failed to send email to %s", to_email)
+        logger.exception("Unexpected error sending email to %s", to_email)
         return False
 
 
@@ -59,11 +67,18 @@ def build_notification_email(title: str, body: str) -> tuple[str, str]:
         if ":" in line:
             key, value = line.split(":", 1)
             if key.strip() and value.strip():
+                value_html = escape(value.strip())
+                if value.strip().startswith(("http://", "https://")):
+                    safe_url = escape(value.strip(), quote=True)
+                    value_html = (
+                        f'<a href="{safe_url}" style="color:#0f172a;text-decoration:underline;">'
+                        f"{escape(value.strip())}</a>"
+                    )
                 structured_rows.append(
                     f"""
     <tr>
       <td style="padding: 8px 0; width: 120px; vertical-align: top; color: #475569; font-size: 13px; font-weight: 600;">{escape(key.strip())}</td>
-      <td style="padding: 8px 0; vertical-align: top; color: #0f172a; font-size: 14px; font-weight: 500;">{escape(value.strip())}</td>
+      <td style="padding: 8px 0; vertical-align: top; color: #0f172a; font-size: 14px; font-weight: 500;">{value_html}</td>
     </tr>"""
                 )
                 continue

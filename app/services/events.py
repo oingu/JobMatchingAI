@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models import Application, CandidateProfile, Event, Job, RecruiterProfile, User
+from app.services.email_tracking import build_email_click_tracking_url
 from app.services.notifications import send_notification
 from app.services.recommendation import persist_recommendations, rank_candidates_for_job, rank_jobs_for_candidate
 from app.utils.time import now_utc
@@ -44,7 +45,12 @@ def _job_summary_block(job: Job) -> str:
     )
 
 
-def _company_contact_block(db: Session, recruiter_id: int, recruiter_name: str) -> str:
+def _company_contact_block(
+    db: Session,
+    recruiter_id: int,
+    recruiter_name: str,
+    website_override: str | None = None,
+) -> str:
     recruiter_profile = (
         db.query(RecruiterProfile).filter(RecruiterProfile.user_id == recruiter_id).first()
     )
@@ -52,7 +58,7 @@ def _company_contact_block(db: Session, recruiter_id: int, recruiter_name: str) 
         recruiter_profile.company_name if recruiter_profile and recruiter_profile.company_name else recruiter_name
     )
     company_phone = recruiter_profile.company_phone if recruiter_profile else ""
-    company_website = recruiter_profile.company_website if recruiter_profile else ""
+    company_website = website_override if website_override is not None else (recruiter_profile.company_website if recruiter_profile else "")
     return (
         f"Company: {company_name}\n"
         f"Contact: {company_phone or 'N/A'}\n"
@@ -113,13 +119,30 @@ def _process_job_created(db: Session, event: Event) -> None:
         replace_for_job=job.id,
     )
 
+    recruiter = db.query(User).filter(User.id == job.recruiter_id).first()
+    recruiter_name = recruiter.name if recruiter else "Recruiter"
+    recruiter_summary_lines: list[str] = []
+
     for score in top_scores:
         if score.final_score < NOTIF_THRESHOLD:
             continue
         candidate = db.query(User).filter(User.id == score.candidate_id).first()
+        if candidate:
+            recruiter_summary_lines.append(
+                f"- {candidate.name} | score {score.final_score:.3f} | {candidate.email or 'N/A'} | {candidate.phone or 'N/A'}"
+            )
         if candidate and not candidate.is_online:
-            recruiter = db.query(User).filter(User.id == job.recruiter_id).first()
-            recruiter_name = recruiter.name if recruiter else "Recruiter"
+            recruiter_profile = db.query(RecruiterProfile).filter(RecruiterProfile.user_id == job.recruiter_id).first()
+            website = recruiter_profile.company_website if recruiter_profile else ""
+            tracked_website = (
+                build_email_click_tracking_url(
+                    candidate_id=candidate.id,
+                    job_id=job.id,
+                    target_url=website if website.startswith(("http://", "https://")) else f"https://{website}",
+                )
+                if website
+                else None
+            )
             send_notification(
                 db,
                 user_id=candidate.id,
@@ -127,10 +150,23 @@ def _process_job_created(db: Session, event: Event) -> None:
                 body=(
                     f"Score: {score.final_score:.3f}. A job may match your profile.\n\n"
                     f"Job: {job.title}\n"
-                    f"{_company_contact_block(db, job.recruiter_id, recruiter_name)}"
+                    f"{_company_contact_block(db, job.recruiter_id, recruiter_name, website_override=tracked_website)}"
                 ),
                 idempotency_key=f"job_created:{event.id}:candidate:{candidate.id}:job:{job.id}",
             )
+
+    if recruiter and (not recruiter.is_online) and recruiter_summary_lines:
+        send_notification(
+            db,
+            user_id=recruiter.id,
+            title=f"Candidates matched your new job: {job.title}",
+            body=(
+                f"Top matched candidates (threshold {NOTIF_THRESHOLD:.2f}):\n"
+                + "\n".join(recruiter_summary_lines[:5])
+                + f"\n\n{_job_summary_block(job)}"
+            ),
+            idempotency_key=f"job_created:{event.id}:recruiter:{recruiter.id}:job:{job.id}",
+        )
 
 
 def _process_candidate_profile_updated(db: Session, event: Event) -> None:
@@ -145,6 +181,8 @@ def _process_candidate_profile_updated(db: Session, event: Event) -> None:
     )
 
     recruiters_notified: set[int] = set()
+    candidate_best_job: Job | None = None
+    candidate_best_score: float = -1.0
     candidate = db.query(User).filter(User.id == candidate_id).first()
     if not candidate:
         return
@@ -155,6 +193,9 @@ def _process_candidate_profile_updated(db: Session, event: Event) -> None:
         job = db.query(Job).filter(Job.id == score.job_id).first()
         if not job:
             continue
+        if score.final_score > candidate_best_score:
+            candidate_best_score = score.final_score
+            candidate_best_job = job
         recruiter = db.query(User).filter(User.id == job.recruiter_id).first()
         if recruiter and not recruiter.is_online and recruiter.id not in recruiters_notified:
             send_notification(
@@ -171,6 +212,35 @@ def _process_candidate_profile_updated(db: Session, event: Event) -> None:
                 idempotency_key=f"candidate_profile_updated:{event.id}:recruiter:{recruiter.id}:candidate:{candidate_id}",
             )
             recruiters_notified.add(recruiter.id)
+
+    # Also notify candidate side when profile update triggers fresh matching.
+    if candidate_best_job and candidate_best_score >= NOTIF_THRESHOLD and not candidate.is_online:
+        best_recruiter = db.query(User).filter(User.id == candidate_best_job.recruiter_id).first()
+        best_recruiter_name = best_recruiter.name if best_recruiter else "Recruiter"
+        recruiter_profile = (
+            db.query(RecruiterProfile).filter(RecruiterProfile.user_id == candidate_best_job.recruiter_id).first()
+        )
+        website = recruiter_profile.company_website if recruiter_profile else ""
+        tracked_website = (
+            build_email_click_tracking_url(
+                candidate_id=candidate.id,
+                job_id=candidate_best_job.id,
+                target_url=website if website.startswith(("http://", "https://")) else f"https://{website}",
+            )
+            if website
+            else None
+        )
+        send_notification(
+            db,
+            user_id=candidate.id,
+            title=f"New matching job: {candidate_best_job.title}",
+            body=(
+                f"Best score: {candidate_best_score:.3f}\n\n"
+                f"{_job_summary_block(candidate_best_job)}\n"
+                f"{_company_contact_block(db, candidate_best_job.recruiter_id, best_recruiter_name, website_override=tracked_website)}"
+            ),
+            idempotency_key=f"candidate_profile_updated:{event.id}:candidate:{candidate.id}:job:{candidate_best_job.id}",
+        )
 
 
 def _process_candidate_applied(db: Session, event: Event) -> None:

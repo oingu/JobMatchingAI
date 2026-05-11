@@ -23,6 +23,7 @@ import {
 
 import { AppShell } from "@/components/app-shell";
 import { RoleGuard } from "@/components/role-guard";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,12 +46,14 @@ type SavedJob = {
   id: number;
   recruiter_id: number;
   title: string;
+  brief_description: string;
   required_skills: SkillItem[];
   location: string;
   salary_min: number;
   salary_max: number;
   experience_level: string;
   company: string;
+  company_avatar_url: string;
   company_phone: string;
   company_website: string;
   recruiter_verified: boolean;
@@ -65,6 +68,7 @@ type JobDetail = {
   id: number;
   recruiter_id: number;
   title: string;
+  brief_description: string;
   required_skills: SkillItem[];
   location: string;
   salary_min: number;
@@ -75,6 +79,7 @@ type JobDetail = {
   created_at: string | null;
   recruiter_name: string;
   company: string;
+  company_avatar_url: string;
   company_phone: string;
   company_website: string;
   match_count: number;
@@ -87,6 +92,7 @@ const LEVEL_LABELS: Record<number, string> = {
   4: "Advanced",
   5: "Expert",
 };
+const BRIEF_PREVIEW_LIMIT = 180;
 
 function formatSalary(n: number): string {
   if (!n) return "—";
@@ -118,6 +124,7 @@ function SavedJobsContent({ session }: { session: SessionData }) {
   const [detailJob, setDetailJob] = useState<JobDetail | null>(null);
   const [detailSaved, setDetailSaved] = useState<SavedJob | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [expandedBriefJobs, setExpandedBriefJobs] = useState<Set<number>>(new Set());
 
   const fetchSaved = useCallback(async () => {
     try {
@@ -177,6 +184,15 @@ function SavedJobsContent({ session }: { session: SessionData }) {
     toastSuccess("Job removed from saved list.");
   }
 
+  function toggleBrief(jobId: number) {
+    setExpandedBriefJobs((prev) => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId);
+      else next.add(jobId);
+      return next;
+    });
+  }
+
   return (
     <AppShell role="candidate" title="Saved Jobs">
       <div className="max-w-3xl space-y-5">
@@ -212,7 +228,7 @@ function SavedJobsContent({ session }: { session: SessionData }) {
               <Card key={job.id} className="overflow-hidden">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 space-y-2">
+                    <div className="flex-1 space-y-3">
                       <div className="flex items-center gap-2">
                         <h3
                           className="cursor-pointer font-semibold hover:text-primary hover:underline"
@@ -227,7 +243,14 @@ function SavedJobsContent({ session }: { session: SessionData }) {
                         )}
                       </div>
 
-                      <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Avatar size="sm">
+                          <AvatarImage src={job.company_avatar_url || undefined} alt={job.company || "Company"} />
+                          <AvatarFallback>
+                            {(job.company || "C").slice(0, 1).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                         {job.recruiter_id ? (
                           <Link href={`/recruiter/public/${job.recruiter_id}`} className="underline underline-offset-2 hover:text-foreground">
                             {job.company || `Job #${job.id}`}
@@ -244,9 +267,10 @@ function SavedJobsContent({ session }: { session: SessionData }) {
                             <ShieldAlert className="h-2.5 w-2.5" /> Unverified
                           </Badge>
                         )}
-                      </p>
+                        </p>
+                      </div>
                       {(job.company_phone || job.company_website) && (
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
                           {job.company_phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{job.company_phone}</span>}
                           {job.company_website && (
                             <a
@@ -262,7 +286,7 @@ function SavedJobsContent({ session }: { session: SessionData }) {
                         </div>
                       )}
 
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
                         {job.location && (
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" /> {job.location}
@@ -302,7 +326,7 @@ function SavedJobsContent({ session }: { session: SessionData }) {
                       </div>
 
                       {job.required_skills.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
                           {job.required_skills.map((s) => (
                             <Badge
                               key={s.name}
@@ -315,6 +339,24 @@ function SavedJobsContent({ session }: { session: SessionData }) {
                               </span>
                             </Badge>
                           ))}
+                        </div>
+                      )}
+                      {job.brief_description && (
+                        <div className="text-sm text-muted-foreground">
+                          <p>
+                            {expandedBriefJobs.has(job.id) || job.brief_description.length <= BRIEF_PREVIEW_LIMIT
+                              ? job.brief_description
+                              : `${job.brief_description.slice(0, BRIEF_PREVIEW_LIMIT)}...`}
+                          </p>
+                          {job.brief_description.length > BRIEF_PREVIEW_LIMIT && (
+                            <button
+                              type="button"
+                              className="mt-1 text-xs font-medium text-primary hover:underline"
+                              onClick={() => toggleBrief(job.id)}
+                            >
+                              {expandedBriefJobs.has(job.id) ? "Show less" : "Read more"}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -330,9 +372,13 @@ function SavedJobsContent({ session }: { session: SessionData }) {
                         <Eye className="h-3.5 w-3.5" /> View
                       </Button>
                       {appliedJobs.has(job.id) ? (
-                        <Badge className="gap-1 px-2.5 py-1 text-xs">
+                        <Button
+                          size="sm"
+                          disabled
+                          className="gap-1 text-xs opacity-100"
+                        >
                           <CheckCircle2 className="h-3 w-3" /> Applied
-                        </Badge>
+                        </Button>
                       ) : (
                         <Button
                           size="sm"
@@ -479,6 +525,16 @@ function SavedJobsContent({ session }: { session: SessionData }) {
                 )}
 
                 <Separator />
+
+                {detailJob.brief_description && (
+                  <>
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold">Brief Description</h4>
+                      <p className="text-sm text-muted-foreground">{detailJob.brief_description}</p>
+                    </div>
+                    <Separator />
+                  </>
+                )}
 
                 {/* Required skills */}
                 {detailJob.required_skills.length > 0 && (

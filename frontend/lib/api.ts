@@ -1,4 +1,4 @@
-import type { SessionData } from "@/lib/auth";
+import { clearSession, type SessionData } from "@/lib/auth";
 
 type ApiResponseEnvelope<T> = {
   data: T;
@@ -36,6 +36,13 @@ export async function apiRequest<T>(
   const payload = (await response.json()) as ApiResponseEnvelope<T> & ApiErrorEnvelope;
   if (!response.ok) {
     const message = payload.error?.message ?? `Request failed (${response.status})`;
+    if (
+      response.status === 401 &&
+      (message.toLowerCase().includes("invalid token") ||
+        message.toLowerCase().includes("expired token"))
+    ) {
+      clearSession();
+    }
     throw new Error(message);
   }
   return payload;
@@ -61,6 +68,13 @@ export async function apiUpload<T>(
   const payload = (await response.json()) as ApiResponseEnvelope<T> & ApiErrorEnvelope;
   if (!response.ok) {
     const message = payload.error?.message ?? `Upload failed (${response.status})`;
+    if (
+      response.status === 401 &&
+      (message.toLowerCase().includes("invalid token") ||
+        message.toLowerCase().includes("expired token"))
+    ) {
+      clearSession();
+    }
     throw new Error(message);
   }
   return payload;

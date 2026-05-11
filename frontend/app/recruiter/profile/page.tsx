@@ -62,6 +62,8 @@ function Content({ session }: { session: SessionData }) {
               .join("\n"),
           );
         }
+      } catch (e) {
+        error(e instanceof Error ? e.message : "Failed to load profile.");
       } finally {
         setLoading(false);
       }

@@ -22,6 +22,11 @@ def _env_int(name: str, default: int) -> int:
 class Settings:
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./job_matching.db")
     frontend_origin: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+    backend_base_url: str = os.getenv("BACKEND_BASE_URL", "http://127.0.0.1:8000")
+    tracking_secret: str = os.getenv("TRACKING_SECRET", "dev-tracking-secret")
+    email_click_boost: float = float(os.getenv("EMAIL_CLICK_BOOST", "0.08"))
+    email_click_cooldown_hours: int = _env_int("EMAIL_CLICK_COOLDOWN_HOURS", 24)
+    email_click_token_ttl_hours: int = _env_int("EMAIL_CLICK_TOKEN_TTL_HOURS", 72)
     token_expire_minutes: int = _env_int("TOKEN_EXPIRE_MINUTES", 1440)
     max_event_retry: int = _env_int("MAX_EVENT_RETRY", 3)
     passive_throttle_hours: int = _env_int("PASSIVE_THROTTLE_HOURS", 24)
@@ -31,9 +36,13 @@ class Settings:
     behavior_lambda: float = float(os.getenv("BEHAVIOR_LAMBDA", "0.12"))
     behavior_passive_streak: int = _env_int("BEHAVIOR_PASSIVE_STREAK", 3)
     behavior_inactive_streak: int = _env_int("BEHAVIOR_INACTIVE_STREAK", 6)
-    matching_strategy: str = os.getenv("MATCHING_STRATEGY", "proficiency")  # proficiency | tfidf | embedding | gemini | set
+    matching_strategy: str = os.getenv("MATCHING_STRATEGY", "proficiency")  # proficiency | tfidf | embedding | gemini | cohere | set
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    cv_parser_mode: str = os.getenv("CV_PARSER_MODE", "auto")  # auto | gemini | regex
+    cohere_api_key: str = os.getenv("COHERE_API_KEY", "")
+    cohere_embed_model: str = os.getenv("COHERE_EMBED_MODEL", "embed-multilingual-v3.0")
+    openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
+    openrouter_model: str = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+    cv_parser_mode: str = os.getenv("CV_PARSER_MODE", "auto")  # auto | openrouter | gemini | regex
     smtp_host: str = os.getenv("SMTP_HOST", "")
     smtp_port: int = _env_int("SMTP_PORT", 587)
     smtp_user: str = os.getenv("SMTP_USER", "")

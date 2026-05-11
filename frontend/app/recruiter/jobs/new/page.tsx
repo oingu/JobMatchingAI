@@ -58,6 +58,7 @@ interface SkillEntry {
 interface JobItem {
   id: number;
   title: string;
+  brief_description: string;
   required_skills: { name: string; level: number }[];
   location: string;
   salary_min: number;
@@ -84,6 +85,8 @@ const STATUS_STYLES: Record<string, string> = {
   expired: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
 };
 
+const BRIEF_PREVIEW_LIMIT = 180;
+
 export default function MyPostsPage() {
   return (
     <RoleGuard allowedRole="recruiter">
@@ -104,6 +107,7 @@ function MyPostsContent({ session }: { session: SessionData }) {
   const [applicantsJobId, setApplicantsJobId] = useState<number | null>(null);
   const [applicantsJobTitle, setApplicantsJobTitle] = useState("");
   const [applicantsOpen, setApplicantsOpen] = useState(false);
+  const [expandedBriefJobs, setExpandedBriefJobs] = useState<Set<number>>(new Set());
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -143,6 +147,15 @@ function MyPostsContent({ session }: { session: SessionData }) {
   const activeCount = jobs.filter((j) => j.status === "active").length;
   const scheduledCount = jobs.filter((j) => j.status === "scheduled").length;
   const expiredCount = jobs.filter((j) => j.status === "expired").length;
+
+  function toggleBrief(jobId: number) {
+    setExpandedBriefJobs((prev) => {
+      const next = new Set(prev);
+      if (next.has(jobId)) next.delete(jobId);
+      else next.add(jobId);
+      return next;
+    });
+  }
 
   return (
     <AppShell role="recruiter" title="My Posts">
@@ -222,6 +235,24 @@ function MyPostsContent({ session }: { session: SessionData }) {
                         {job.status}
                       </Badge>
                     </div>
+                    {job.brief_description && (
+                      <div className="text-sm text-muted-foreground">
+                        <p>
+                          {expandedBriefJobs.has(job.id) || job.brief_description.length <= BRIEF_PREVIEW_LIMIT
+                            ? job.brief_description
+                            : `${job.brief_description.slice(0, BRIEF_PREVIEW_LIMIT)}...`}
+                        </p>
+                        {job.brief_description.length > BRIEF_PREVIEW_LIMIT && (
+                          <button
+                            type="button"
+                            className="mt-1 text-xs font-medium text-primary hover:underline"
+                            onClick={() => toggleBrief(job.id)}
+                          >
+                            {expandedBriefJobs.has(job.id) ? "Show less" : "Read more"}
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       {job.location && (
@@ -628,6 +659,7 @@ function CreateJobForm({
 }) {
   const { success: toastSuccess, error: toastError } = useToast();
   const [title, setTitle] = useState("");
+  const [briefDescription, setBriefDescription] = useState("");
   const [skills, setSkills] = useState<SkillEntry[]>([]);
   const [location, setLocation] = useState("");
   const [salaryMin, setSalaryMin] = useState(0);
@@ -659,6 +691,7 @@ function CreateJobForm({
       const body: Record<string, unknown> = {
         recruiter_id: session.userId,
         title,
+        brief_description: briefDescription,
         required_skills: skills,
         location,
         salary_min: salaryMin,
@@ -708,6 +741,16 @@ function CreateJobForm({
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="brief-description">Brief Description</Label>
+          <textarea
+            id="brief-description"
+            className="flex min-h-[96px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+            placeholder="Describe key responsibilities, team, and expectations..."
+            value={briefDescription}
+            onChange={(e) => setBriefDescription(e.target.value)}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -870,6 +913,7 @@ function EditJobForm({
 }) {
   const { success: toastSuccess, error: toastError } = useToast();
   const [title, setTitle] = useState(job.title);
+  const [briefDescription, setBriefDescription] = useState(job.brief_description || "");
   const [skills, setSkills] = useState<SkillEntry[]>(
     (job.required_skills || []).map((s: SkillEntry) => ({
       name: s.name,
@@ -911,6 +955,7 @@ function EditJobForm({
     try {
       const body: Record<string, unknown> = {
         title,
+        brief_description: briefDescription,
         required_skills: skills,
         location,
         salary_min: salaryMin,
@@ -959,6 +1004,16 @@ function EditJobForm({
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-brief-description">Brief Description</Label>
+          <textarea
+            id="edit-brief-description"
+            className="flex min-h-[96px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+            placeholder="Describe key responsibilities, team, and expectations..."
+            value={briefDescription}
+            onChange={(e) => setBriefDescription(e.target.value)}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">

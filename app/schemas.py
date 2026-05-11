@@ -45,6 +45,7 @@ class RecruiterProfileCreate(BaseModel):
 class JobCreate(BaseModel):
     recruiter_id: int
     title: Annotated[str, Field(min_length=2, max_length=255)]
+    brief_description: Annotated[str, Field(max_length=3000)] = ""
     required_skills: Annotated[list[SkillEntry], Field(min_length=1)]
     location: Annotated[str, Field(min_length=2, max_length=100)]
     salary_min: int = Field(ge=0)
@@ -68,6 +69,7 @@ class JobCreate(BaseModel):
 
 class JobUpdate(BaseModel):
     title: Annotated[str, Field(min_length=2, max_length=255)]
+    brief_description: Annotated[str, Field(max_length=3000)] = ""
     required_skills: Annotated[list[SkillEntry], Field(min_length=1)]
     location: Annotated[str, Field(min_length=2, max_length=100)]
     salary_min: int = Field(ge=0)

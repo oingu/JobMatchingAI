@@ -110,6 +110,16 @@ def _skill_scores_gemini(
     return batch_cosine_with_gemini_embeddings(job_skills, candidate_skills)
 
 
+def _skill_scores_cohere(
+    job_skills: SkillList, candidates: list[CandidateProfile],
+) -> list[float]:
+    """Compute skill match using Cohere Embed API."""
+    from app.services.cv_parser_cohere import batch_cosine_with_cohere_embeddings
+    if not candidates:
+        return []
+    candidate_skills = [_parse_skills(c.skills) for c in candidates]
+    return batch_cosine_with_cohere_embeddings(job_skills, candidate_skills)
+
 def cosine_from_sets(a: set[str], b: set[str]) -> float:
     """Legacy binary-vector cosine (set intersection)."""
     if not a or not b:
@@ -137,6 +147,7 @@ _STRATEGY_FN = {
     "tfidf": _skill_scores_tfidf,
     "embedding": _skill_scores_embedding,
     "gemini": _skill_scores_gemini,
+    "cohere": _skill_scores_cohere,
     "set": _skill_scores_set,
 }
 
@@ -219,6 +230,10 @@ def rank_jobs_for_candidate(db: Session, profile: CandidateProfile, top_k: int =
         from app.services.cv_parser_gemini import batch_cosine_with_gemini_embeddings
         job_skills_list = [_parse_skills(j.required_skills) for j in jobs]
         scores = batch_cosine_with_gemini_embeddings(candidate_skills, job_skills_list)
+    elif strategy == "cohere":
+        from app.services.cv_parser_cohere import batch_cosine_with_cohere_embeddings
+        job_skills_list = [_parse_skills(j.required_skills) for j in jobs]
+        scores = batch_cosine_with_cohere_embeddings(candidate_skills, job_skills_list)
     else:
         c_names = {s.get("name", "").lower() for s in candidate_skills if s.get("name")}
         scores = [

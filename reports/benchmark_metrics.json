@@ -1,29 +1,44 @@
 {
-  "job_count": 1,
-  "candidate_profile_count": 1,
-  "pending_events_before": 0,
-  "processed_events": 0,
-  "quality": {
-    "precision_at_k": 0.0,
-    "recall_at_k": 0.0
+  "dataset": {
+    "job_count": 60,
+    "candidate_count": 150,
+    "recommendation_count": 300,
+    "candidate_status": {
+      "active": 77,
+      "passive": 46,
+      "inactive": 27
+    }
+  },
+  "events": {
+    "pending_before": 0,
+    "processed": 0,
+    "done_total": 60,
+    "failed_total": 0,
+    "processing_time_seconds": 0.0
+  },
+  "recommendation_quality": {
+    "precision_at_5": 0.0136,
+    "recall_at_5": 0.0085,
+    "precision_at_10": 0.0136,
+    "recall_at_10": 0.0085
   },
   "engagement": {
-    "ctr": 0.0,
-    "apply_rate": 0.0,
-    "ignore_rate": 0.0
+    "ctr": 0.4,
+    "apply_rate": 0.3066,
+    "ignore_rate": 0.6
   },
-  "comparison": {
+  "model_comparison": {
     "baseline": {
-      "precision_at_k": 0.0,
-      "recall_at_k": 0.0
+      "precision_at_5": 0.0136,
+      "recall_at_5": 0.0085
     },
     "improved": {
-      "precision_at_k": 0.0,
-      "recall_at_k": 0.0
+      "precision_at_5": 0.0136,
+      "recall_at_5": 0.0085
     },
     "delta": {
-      "precision_at_k": 0.0,
-      "recall_at_k": 0.0
+      "precision_at_5": 0.0,
+      "recall_at_5": 0.0
     }
   }
 }

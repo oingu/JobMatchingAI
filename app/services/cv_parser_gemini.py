@@ -229,7 +229,7 @@ def embed_text(text: str) -> list[float]:
     """Generate a dense embedding vector using Gemini."""
     client = _get_client()
     result = client.models.embed_content(
-        model="text-embedding-004",
+        model="gemini-embedding-001",
         contents=text,
     )
     return list(result.embeddings[0].values)

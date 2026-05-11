@@ -84,6 +84,7 @@ class Job(Base):
     id = Column(Integer, primary_key=True, index=True)
     recruiter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String(255), nullable=False)
+    brief_description = Column(Text, default="", nullable=False)
     required_skills = Column(JSON, default=[], nullable=False)  # [{name, level}] level 1-5
     location = Column(String(100), default="", nullable=False)
     salary_min = Column(Integer, default=0, nullable=False)

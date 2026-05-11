@@ -22,6 +22,7 @@ import {
 
 import { AppShell } from "@/components/app-shell";
 import { RoleGuard } from "@/components/role-guard";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,6 +45,7 @@ type ApplicationItem = {
   job_id: number;
   job_title: string;
   company: string;
+  company_avatar_url: string;
   location: string;
   cover_letter: string;
   status: string;
@@ -57,6 +59,7 @@ type JobDetail = {
   id: number;
   recruiter_id: number;
   title: string;
+  brief_description: string;
   required_skills: SkillItem[];
   location: string;
   salary_min: number;
@@ -210,9 +213,14 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                         <h3 className="font-semibold leading-tight">
                           {app.job_title}
                         </h3>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                          <span className="flex items-center gap-1">
-                            <Building2 className="h-3 w-3" />
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <Avatar size="sm">
+                              <AvatarImage src={app.company_avatar_url || undefined} alt={app.company || "Company"} />
+                              <AvatarFallback>
+                                {(app.company || "C").slice(0, 1).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
                             {app.company}
                           </span>
                           {app.location && (
@@ -341,6 +349,16 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                 </div>
 
                 <Separator />
+
+                {detailJob.brief_description && (
+                  <>
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold">Brief Description</h4>
+                      <p className="text-sm text-muted-foreground">{detailJob.brief_description}</p>
+                    </div>
+                    <Separator />
+                  </>
+                )}
 
                 {detailJob.required_skills.length > 0 && (
                   <div className="space-y-3">
