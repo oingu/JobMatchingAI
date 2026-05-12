@@ -239,263 +239,275 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
 
   return (
     <AppShell role="candidate" title="My Profile">
-      <div className="max-w-2xl space-y-6">
+      <div className="space-y-4">
+        {/* Top bar */}
         <div className="flex justify-end">
           <Button asChild variant="outline">
             <Link href={`/candidate/public/${session.userId}`}>View as Public</Link>
           </Button>
         </div>
 
-        {/* CV Upload */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Upload CV</CardTitle>
-            <CardDescription>Upload a PDF to auto-extract skills, experience, and preferences.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <Input ref={fileRef} type="file" accept=".pdf,application/pdf" className="flex-1" />
-              <Button onClick={handleUpload} disabled={uploading} className="gap-2">
-                <Upload className="h-4 w-4" />
-                {uploading ? "Parsing…" : "Upload"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Two-column layout */}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
 
-        {/* Extraction Result */}
-        {extraction && (
-          <Card className="border-green-200 bg-green-50/50">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Extraction Result</CardTitle>
-                {parserUsed && (
-                  <Badge variant={parserUsed === "gemini" ? "default" : "secondary"}>
-                    {parserUsed === "gemini" ? "Gemini AI Vision" : "Regex + OCR"}
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {geminiError && parserUsed === "regex" && (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Gemini AI was not used</AlertTitle>
-                  <AlertDescription className="text-xs">{geminiError}</AlertDescription>
-                </Alert>
-              )}
+          {/* ── LEFT COLUMN: Matching Profile ── */}
+          <div className="space-y-5">
+            {/* CV Upload */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Upload CV</CardTitle>
+                <CardDescription>Upload a PDF to auto-extract skills, experience, and preferences.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <Input ref={fileRef} type="file" accept=".pdf,application/pdf" className="flex-1" />
+                  <Button onClick={handleUpload} disabled={uploading} className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    {uploading ? "Parsing…" : "Upload"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Skills with bars */}
-              <div>
-                <p className="mb-2 text-sm font-medium">
-                  Skills detected: <span className="font-bold text-green-700">{extraction.skills.length}</span>
-                </p>
-                {extraction.skills.length > 0 ? (
-                  <div className="space-y-2">
-                    {extraction.skills.map((s) => (
-                      <div key={s.name} className="flex items-center gap-3">
-                        <span className="min-w-[100px] text-sm font-medium">{s.name}</span>
-                        <Progress
-                          value={(s.level / 5) * 100}
-                          className="h-2 flex-1"
+            {/* Extraction Result (conditional) */}
+            {extraction && (
+              <Card className="border-green-200 bg-green-50/50">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Extraction Result</CardTitle>
+                    {parserUsed && (
+                      <Badge variant={parserUsed === "gemini" ? "default" : "secondary"}>
+                        {parserUsed === "gemini" ? "Gemini AI Vision" : "Regex + OCR"}
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {geminiError && parserUsed === "regex" && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Gemini AI was not used</AlertTitle>
+                      <AlertDescription className="text-xs">{geminiError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <div>
+                    <p className="mb-2 text-sm font-medium">
+                      Skills detected: <span className="font-bold text-green-700">{extraction.skills.length}</span>
+                    </p>
+                    {extraction.skills.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {extraction.skills.map((s) => (
+                          <div key={s.name} className="flex items-center gap-2">
+                            <span className="min-w-[90px] text-sm font-medium">{s.name}</span>
+                            <Progress value={(s.level / 5) * 100} className="h-2 flex-1" />
+                            <Badge variant="outline" className="min-w-[80px] justify-center text-xs">
+                              Lv.{s.level} {LEVEL_LABELS[s.level]}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">None detected</p>
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Experience</p>
+                      <p className="font-medium capitalize">
+                        {extraction.experience_level}
+                        {extraction.years_of_experience !== null && ` (${extraction.years_of_experience}y)`}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Locations</p>
+                      <p className="font-medium">{extraction.locations.length > 0 ? extraction.locations.join(", ") : "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Min Salary</p>
+                      <p className="font-medium">{extraction.salary_min > 0 ? `$${extraction.salary_min.toLocaleString()}` : "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Text extracted</p>
+                      <p className="font-medium">{extraction.raw_text_length.toLocaleString()} chars</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Skills & Proficiency */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Skills &amp; Proficiency</CardTitle>
+                <CardDescription>Each skill has a proficiency level (1–5) used for weighted matching.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {skills.length > 0 && (
+                  <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                    {skills.map((skill) => (
+                      <div key={skill.name} className="flex items-center gap-2 rounded-lg border bg-muted/40 p-2.5">
+                        <span className="min-w-[90px] text-sm font-medium">{skill.name}</span>
+                        <input
+                          type="range"
+                          min={1}
+                          max={5}
+                          value={skill.level}
+                          onChange={(e) =>
+                            setSkills(skills.map((s) => (s.name === skill.name ? { ...s, level: Number(e.target.value) } : s)))
+                          }
+                          className="flex-1 accent-primary"
                         />
-                        <Badge variant="outline" className="min-w-[90px] justify-center text-xs">
-                          Lv.{s.level} {LEVEL_LABELS[s.level]}
+                        <Badge variant="secondary" className="min-w-[80px] justify-center text-xs">
+                          Lv.{skill.level} {LEVEL_LABELS[skill.level]}
                         </Badge>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSkills(skills.filter((s) => s.name !== skill.name))}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">None detected</p>
                 )}
-              </div>
 
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-muted-foreground">Experience</p>
-                  <p className="font-medium capitalize">
-                    {extraction.experience_level}
-                    {extraction.years_of_experience !== null && ` (${extraction.years_of_experience}y)`}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Locations</p>
-                  <p className="font-medium">{extraction.locations.length > 0 ? extraction.locations.join(", ") : "—"}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Min Salary</p>
-                  <p className="font-medium">{extraction.salary_min > 0 ? `$${extraction.salary_min.toLocaleString()}` : "—"}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Text extracted</p>
-                  <p className="font-medium">{extraction.raw_text_length.toLocaleString()} chars</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Public Profile (LinkedIn-style)</CardTitle>
-            <CardDescription>This section is visible to recruiters.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Avatar</Label>
-                <div className="flex items-center gap-3">
-                  <Input ref={avatarFileRef} type="file" accept="image/*" />
-                  <Button type="button" variant="outline" onClick={() => uploadPublicImage("avatar")} disabled={uploadingAvatar}>
-                    {uploadingAvatar ? "Uploading..." : "Upload"}
+                <div className="flex gap-2">
+                  <Input
+                    className="flex-1"
+                    value={newSkillName}
+                    onChange={(e) => setNewSkillName(e.target.value)}
+                    placeholder="Skill name"
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
+                  />
+                  <select
+                    className="w-20 rounded-md border border-input bg-transparent px-2 text-sm"
+                    value={newSkillLevel}
+                    onChange={(e) => setNewSkillLevel(Number(e.target.value))}
+                  >
+                    {[1, 2, 3, 4, 5].map((l) => (
+                      <option key={l} value={l}>Lv.{l}</option>
+                    ))}
+                  </select>
+                  <Button type="button" variant="outline" onClick={addSkill}>
+                    <Plus className="mr-1 h-4 w-4" /> Add
                   </Button>
                 </div>
-                {avatarUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl} alt="Avatar preview" className="h-20 w-20 rounded-full border object-cover" />
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Cover</Label>
-                <div className="flex items-center gap-3">
-                  <Input ref={coverFileRef} type="file" accept="image/*" />
-                  <Button type="button" variant="outline" onClick={() => uploadPublicImage("cover")} disabled={uploadingCover}>
-                    {uploadingCover ? "Uploading..." : "Upload"}
-                  </Button>
-                </div>
-                {coverUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={coverUrl} alt="Cover preview" className="h-24 w-full rounded-md border object-cover" />
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Bio</Label>
-              <textarea
-                className="flex min-h-[90px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Brief introduction..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Education (one line: School | Degree | Period)</Label>
-              <textarea
-                className="flex min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
-                value={educationText}
-                onChange={(e) => setEducationText(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Experience (one line: Company | Role | Period | Description)</Label>
-              <textarea
-                className="flex min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
-                value={experienceText}
-                onChange={(e) => setExperienceText(e.target.value)}
-              />
-            </div>
-            <Button type="button" onClick={savePublicProfile} disabled={savingPublic}>
-              {savingPublic ? "Saving..." : "Save Public Profile"}
-            </Button>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Skills & Proficiency */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Skills &amp; Proficiency</CardTitle>
-            <CardDescription>Each skill has a proficiency level (1–5) used for weighted matching.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {skills.length > 0 && (
-              <div className="space-y-2">
-                {skills.map((skill) => (
-                  <div key={skill.name} className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-                    <span className="min-w-[100px] text-sm font-medium">{skill.name}</span>
-                    <input
-                      type="range"
-                      min={1}
-                      max={5}
-                      value={skill.level}
-                      onChange={(e) =>
-                        setSkills(skills.map((s) => (s.name === skill.name ? { ...s, level: Number(e.target.value) } : s)))
-                      }
-                      className="flex-1 accent-primary"
-                    />
-                    <Badge variant="secondary" className="min-w-[90px] justify-center text-xs">
-                      Lv.{skill.level} {LEVEL_LABELS[skill.level]}
-                    </Badge>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSkills(skills.filter((s) => s.name !== skill.name))}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
+            {/* Profile Details (Matching Preferences) */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Matching Preferences</CardTitle>
+                <CardDescription>Your preferences for job matching.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={submit} className="space-y-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label>Experience Level</Label>
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={experienceLevel}
+                        onChange={(e) => setExperienceLevel(e.target.value)}
+                      >
+                        <option value="junior">Junior</option>
+                        <option value="middle">Middle</option>
+                        <option value="senior">Senior</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Preferred Locations</Label>
+                      <Input value={locations} onChange={(e) => setLocations(e.target.value)} placeholder="hanoi, remote" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Min Salary ($)</Label>
+                      <Input type="number" value={salaryMin} onChange={(e) => setSalaryMin(Number(e.target.value))} />
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+                  <Button type="submit" className="w-full">Save Profile</Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
 
-            <div className="flex gap-2">
-              <Input
-                className="flex-1"
-                value={newSkillName}
-                onChange={(e) => setNewSkillName(e.target.value)}
-                placeholder="Skill name"
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
-              />
-              <select
-                className="w-20 rounded-md border border-input bg-transparent px-2 text-sm"
-                value={newSkillLevel}
-                onChange={(e) => setNewSkillLevel(Number(e.target.value))}
-              >
-                {[1, 2, 3, 4, 5].map((l) => (
-                  <option key={l} value={l}>Lv.{l}</option>
-                ))}
-              </select>
-              <Button type="button" variant="outline" onClick={addSkill}>
-                <Plus className="mr-1 h-4 w-4" /> Add
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          {/* ── RIGHT COLUMN: Public Profile ── */}
+          <div className="space-y-5">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Public Profile</CardTitle>
+                <CardDescription>This section is visible to recruiters (LinkedIn-style).</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Avatar & Cover side by side */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Avatar</Label>
+                    <div className="flex items-center gap-2">
+                      <Input ref={avatarFileRef} type="file" accept="image/*" className="flex-1 text-xs" />
+                      <Button type="button" variant="outline" size="sm" onClick={() => uploadPublicImage("avatar")} disabled={uploadingAvatar}>
+                        {uploadingAvatar ? "..." : "Upload"}
+                      </Button>
+                    </div>
+                    {avatarUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={avatarUrl} alt="Avatar preview" className="h-16 w-16 rounded-full border object-cover" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cover</Label>
+                    <div className="flex items-center gap-2">
+                      <Input ref={coverFileRef} type="file" accept="image/*" className="flex-1 text-xs" />
+                      <Button type="button" variant="outline" size="sm" onClick={() => uploadPublicImage("cover")} disabled={uploadingCover}>
+                        {uploadingCover ? "..." : "Upload"}
+                      </Button>
+                    </div>
+                    {coverUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={coverUrl} alt="Cover preview" className="h-20 w-full rounded-md border object-cover" />
+                    )}
+                  </div>
+                </div>
 
-        {/* Profile Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Profile Details</CardTitle>
-            <CardDescription>Your preferences for job matching.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={submit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Experience Level</Label>
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  value={experienceLevel}
-                  onChange={(e) => setExperienceLevel(e.target.value)}
-                >
-                  <option value="junior">Junior</option>
-                  <option value="middle">Middle</option>
-                  <option value="senior">Senior</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Preferred Locations (comma separated)</Label>
-                <Input value={locations} onChange={(e) => setLocations(e.target.value)} placeholder="hanoi, remote" />
-              </div>
-              <div className="space-y-2">
-                <Label>Minimum Expected Salary ($)</Label>
-                <Input type="number" value={salaryMin} onChange={(e) => setSalaryMin(Number(e.target.value))} />
-              </div>
-              <Button type="submit" className="w-full">Save Profile</Button>
-            </form>
-          </CardContent>
-        </Card>
+                <div className="space-y-1.5">
+                  <Label>Bio</Label>
+                  <textarea
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Brief introduction..."
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Education <span className="text-xs text-muted-foreground">(one line: School | Degree | Period)</span></Label>
+                  <textarea
+                    className="flex min-h-[90px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+                    value={educationText}
+                    onChange={(e) => setEducationText(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Experience <span className="text-xs text-muted-foreground">(Company | Role | Period | Description)</span></Label>
+                  <textarea
+                    className="flex min-h-[90px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+                    value={experienceText}
+                    onChange={(e) => setExperienceText(e.target.value)}
+                  />
+                </div>
+
+                <Button type="button" className="w-full" onClick={savePublicProfile} disabled={savingPublic}>
+                  {savingPublic ? "Saving..." : "Save Public Profile"}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+        </div>
       </div>
     </AppShell>
   );
