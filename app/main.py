@@ -246,7 +246,7 @@ def register(payload: UserCreate, request: Request, db: Session = Depends(get_db
         password=hash_password(payload.password),
         role=payload.role,
         is_online=False,
-        email_verified=False,
+        email_verified=True,
     )
     db.add(user)
     db.commit()
@@ -268,7 +268,7 @@ def register(payload: UserCreate, request: Request, db: Session = Depends(get_db
         "user_id": user.id,
         "name": user.name,
         "role": user.role,
-        "email_verified": False,
+        "email_verified": True,
         "email_sent": email_sent,
     })
 
