@@ -451,6 +451,14 @@ def delete_account(
 ) -> dict:
     """Permanently delete the current user's account and all associated data."""
     uid = current_user.id
+    # Clear recruiter job references first to avoid foreign key violations
+    job_ids = [j.id for j in db.query(Job).filter(Job.recruiter_id == uid).all()]
+    if job_ids:
+        db.query(Application).filter(Application.job_id.in_(job_ids)).delete(synchronize_session=False)
+        db.query(Recommendation).filter(Recommendation.job_id.in_(job_ids)).delete(synchronize_session=False)
+        db.query(InteractionLog).filter(InteractionLog.job_id.in_(job_ids)).delete(synchronize_session=False)
+        db.query(Job).filter(Job.id.in_(job_ids)).delete(synchronize_session=False)
+
     db.query(AuthToken).filter(AuthToken.user_id == uid).delete()
     db.query(EmailVerification).filter(EmailVerification.user_id == uid).delete()
     db.query(Notification).filter(Notification.user_id == uid).delete()
@@ -459,9 +467,10 @@ def delete_account(
     db.query(Recommendation).filter(Recommendation.candidate_id == uid).delete()
     db.query(CandidateProfile).filter(CandidateProfile.user_id == uid).delete()
     db.query(RecruiterProfile).filter(RecruiterProfile.user_id == uid).delete()
-    db.query(Job).filter(Job.recruiter_id == uid).delete()
+    db.query(AuditLog).filter(AuditLog.actor_user_id == uid).delete()
     db.query(User).filter(User.id == uid).delete()
     db.commit()
+    # Log the delete action using None as actor since the user is deleted
     audit(db, action="account_deleted", resource_type="user", resource_id=str(uid), detail={})
     return api_ok({"deleted": True})
 
