@@ -134,15 +134,16 @@ def _process_job_created(db: Session, event: Event) -> None:
         if candidate and not candidate.is_online:
             recruiter_profile = db.query(RecruiterProfile).filter(RecruiterProfile.user_id == job.recruiter_id).first()
             website = recruiter_profile.company_website if recruiter_profile else ""
-            tracked_website = (
-                build_email_click_tracking_url(
+            if website:
+                target_url = website if website.startswith(("http://", "https://")) else f"https://{website}"
+                tracked_url = build_email_click_tracking_url(
                     candidate_id=candidate.id,
                     job_id=job.id,
-                    target_url=website if website.startswith(("http://", "https://")) else f"https://{website}",
+                    target_url=target_url,
                 )
-                if website
-                else None
-            )
+                tracked_website = f"[{website}]({tracked_url})"
+            else:
+                tracked_website = None
             send_notification(
                 db,
                 user_id=candidate.id,
@@ -221,15 +222,16 @@ def _process_candidate_profile_updated(db: Session, event: Event) -> None:
             db.query(RecruiterProfile).filter(RecruiterProfile.user_id == candidate_best_job.recruiter_id).first()
         )
         website = recruiter_profile.company_website if recruiter_profile else ""
-        tracked_website = (
-            build_email_click_tracking_url(
+        if website:
+            target_url = website if website.startswith(("http://", "https://")) else f"https://{website}"
+            tracked_url = build_email_click_tracking_url(
                 candidate_id=candidate.id,
                 job_id=candidate_best_job.id,
-                target_url=website if website.startswith(("http://", "https://")) else f"https://{website}",
+                target_url=target_url,
             )
-            if website
-            else None
-        )
+            tracked_website = f"[{website}]({tracked_url})"
+        else:
+            tracked_website = None
         send_notification(
             db,
             user_id=candidate.id,

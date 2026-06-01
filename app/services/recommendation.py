@@ -99,26 +99,6 @@ def _skill_scores_embedding(
     return EmbeddingVectorizer.batch_compare(job_csv, candidate_csvs)
 
 
-def _skill_scores_gemini(
-    job_skills: SkillList, candidates: list[CandidateProfile],
-) -> list[float]:
-    """Compute skill match using Gemini Embedding API."""
-    from app.services.cv_parser_gemini import batch_cosine_with_gemini_embeddings
-    if not candidates:
-        return []
-    candidate_skills = [_parse_skills(c.skills) for c in candidates]
-    return batch_cosine_with_gemini_embeddings(job_skills, candidate_skills)
-
-
-def _skill_scores_cohere(
-    job_skills: SkillList, candidates: list[CandidateProfile],
-) -> list[float]:
-    """Compute skill match using Cohere Embed API."""
-    from app.services.cv_parser_cohere import batch_cosine_with_cohere_embeddings
-    if not candidates:
-        return []
-    candidate_skills = [_parse_skills(c.skills) for c in candidates]
-    return batch_cosine_with_cohere_embeddings(job_skills, candidate_skills)
 
 def cosine_from_sets(a: set[str], b: set[str]) -> float:
     """Legacy binary-vector cosine (set intersection)."""
@@ -146,8 +126,6 @@ _STRATEGY_FN = {
     "proficiency": _skill_scores_proficiency,
     "tfidf": _skill_scores_tfidf,
     "embedding": _skill_scores_embedding,
-    "gemini": _skill_scores_gemini,
-    "cohere": _skill_scores_cohere,
     "set": _skill_scores_set,
 }
 
@@ -182,7 +160,7 @@ def compute_final_score(skill_match: float, pref_match: float, activity: float) 
 # ---------------------------------------------------------------------------
 
 def rank_candidates_for_job(db: Session, job: Job, top_k: int = 5) -> list[MatchScore]:
-    candidates = [c for c in db.query(CandidateProfile).all() if c.status != "INACTIVE"]
+    candidates = [c for c in db.query(CandidateProfile).all() if c.status != "INACTIVE" and c.birth_date]
     job_skills = _parse_skills(job.required_skills)
     skill_scores = _get_skill_scores(job_skills, candidates)
 
@@ -206,7 +184,7 @@ def rank_candidates_for_job(db: Session, job: Job, top_k: int = 5) -> list[Match
 
 def rank_jobs_for_candidate(db: Session, profile: CandidateProfile, top_k: int = 5) -> list[MatchScore]:
     jobs = db.query(Job).all()
-    if not jobs:
+    if not jobs or not profile.birth_date:
         return []
 
     candidate_skills = _parse_skills(profile.skills)

@@ -36,7 +36,7 @@ class Settings:
     behavior_lambda: float = float(os.getenv("BEHAVIOR_LAMBDA", "0.12"))
     behavior_passive_streak: int = _env_int("BEHAVIOR_PASSIVE_STREAK", 3)
     behavior_inactive_streak: int = _env_int("BEHAVIOR_INACTIVE_STREAK", 6)
-    matching_strategy: str = os.getenv("MATCHING_STRATEGY", "proficiency")  # proficiency | tfidf | embedding | gemini | cohere | set
+    matching_strategy: str = os.getenv("MATCHING_STRATEGY", "proficiency")  # proficiency | tfidf | embedding | set
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     cohere_api_key: str = os.getenv("COHERE_API_KEY", "")
     cohere_embed_model: str = os.getenv("COHERE_EMBED_MODEL", "embed-multilingual-v3.0")

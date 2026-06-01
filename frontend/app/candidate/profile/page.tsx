@@ -50,6 +50,7 @@ interface SavedProfile {
   experience_level: string;
   preferred_locations: string;
   preferred_salary_min: number;
+  birth_date: string;
   avatar_url: string;
   cover_url: string;
   bio: string;
@@ -57,6 +58,7 @@ interface SavedProfile {
   experiences: Array<{ company?: string; role?: string; period?: string; description?: string }>;
   status: string;
   activity_score: number;
+  phone: string;
 }
 
 export default function CandidateProfilePage() {
@@ -73,7 +75,9 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
   const [experienceLevel, setExperienceLevel] = useState("junior");
   const [locations, setLocations] = useState("");
   const [salaryMin, setSalaryMin] = useState(0);
+  const [birthDate, setBirthDate] = useState("");
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [backup, setBackup] = useState<{ skills: SkillEntry[], experienceLevel: string, locations: string, salaryMin: number } | null>(null);
 
   const [newSkillName, setNewSkillName] = useState("");
   const [newSkillLevel, setNewSkillLevel] = useState(3);
@@ -82,12 +86,14 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const coverFileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [extraction, setExtraction] = useState<CVParsed | null>(null);
   const [parserUsed, setParserUsed] = useState<string | null>(null);
   const [geminiError, setGeminiError] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [bio, setBio] = useState("");
+  const [phone, setPhone] = useState("");
   const [educationText, setEducationText] = useState("");
   const [experienceText, setExperienceText] = useState("");
   const [savingPublic, setSavingPublic] = useState(false);
@@ -103,9 +109,11 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
           setExperienceLevel(res.data.experience_level || "junior");
           setLocations(res.data.preferred_locations || "");
           setSalaryMin(res.data.preferred_salary_min || 0);
+          setBirthDate(res.data.birth_date || "");
           setAvatarUrl(res.data.avatar_url || "");
           setCoverUrl(res.data.cover_url || "");
           setBio(res.data.bio || "");
+          setPhone(res.data.phone || "");
           setEducationText(
             (res.data.education || []).map((e) => `${e.school || ""} | ${e.degree || ""} | ${e.period || ""}`).join("\n"),
           );
@@ -129,6 +137,7 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!birthDate) { toastError("Date of Birth is required for matching."); return; }
     if (skills.length === 0) { toastError("Please add at least one skill."); return; }
     try {
       await apiRequest<{ profile_id: number; event_id: number }>("/candidate-profiles", {
@@ -140,38 +149,76 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
           experience_level: experienceLevel,
           preferred_locations: locations.split(",").map((s) => s.trim()).filter(Boolean),
           preferred_salary_min: salaryMin,
+          birth_date: birthDate,
         },
       });
       toastSuccess("Profile saved. Matching triggered automatically.");
+      setBackup(null);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Save profile failed.");
     }
+  }
+
+  function undoUpload() {
+    if (!backup) return;
+    setSkills(backup.skills);
+    setExperienceLevel(backup.experienceLevel);
+    setLocations(backup.locations);
+    setSalaryMin(backup.salaryMin);
+    setBackup(null);
+    setExtraction(null);
+    setParserUsed(null);
+    setGeminiError(null);
+    if (fileRef.current) fileRef.current.value = "";
+    toastSuccess("Reverted to previous profile data.");
   }
 
   async function handleUpload() {
     const file = fileRef.current?.files?.[0];
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".pdf")) { toastError("Please select a PDF file."); return; }
+    
     setUploading(true);
+    setUploadProgress(0);
     setExtraction(null); setParserUsed(null); setGeminiError(null);
+    
+    const interval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 90) return prev;
+        return prev + 5 + Math.floor(Math.random() * 10);
+      });
+    }, 400);
+
     try {
       const response = await apiUpload<UploadResult>("/candidates/upload-cv", file, session);
-      const result = response.data;
-      setExtraction(result.parsed);
-      setParserUsed(result.parser ?? null);
-      setGeminiError(result.gemini_error || null);
-      if (result.profile_updated) {
-        setSkills(result.parsed.skills);
-        setExperienceLevel(result.parsed.experience_level);
-        if (result.parsed.locations.length > 0) setLocations(result.parsed.locations.join(","));
-        if (result.parsed.salary_min > 0) setSalaryMin(result.parsed.salary_min);
-        toastSuccess("CV parsed — profile updated and matching triggered.");
-      } else {
-        toastSuccess(result.message ?? "CV parsed but no skills detected. Please update manually.");
-      }
+      
+      clearInterval(interval);
+      setUploadProgress(100);
+      
+      setTimeout(() => {
+        const result = response.data;
+        setExtraction(result.parsed);
+        setParserUsed(result.parser ?? null);
+        // @ts-ignore - 'error' is passed back from the updated endpoint
+        setGeminiError(result.error || result.gemini_error || null);
+        
+        if (result.parsed.skills.length > 0) {
+          setBackup({ skills, experienceLevel, locations, salaryMin });
+          setSkills(result.parsed.skills);
+          setExperienceLevel(result.parsed.experience_level);
+          if (result.parsed.locations.length > 0) setLocations(result.parsed.locations.join(","));
+          if (result.parsed.salary_min > 0) setSalaryMin(result.parsed.salary_min);
+          toastSuccess(result.message ?? "CV parsed successfully. Please review and save.");
+        } else {
+          toastSuccess(result.message ?? "CV parsed but no skills detected. Please update manually.");
+        }
+        setUploading(false);
+        setUploadProgress(0);
+      }, 500);
     } catch (err) {
+      clearInterval(interval);
+      setUploadProgress(0);
       toastError(err instanceof Error ? err.message : "Upload failed.");
-    } finally {
       setUploading(false);
     }
   }
@@ -198,7 +245,7 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
       await apiRequest("/candidate-profiles/me/public", {
         method: "PUT",
         session,
-        body: { avatar_url: avatarUrl, cover_url: coverUrl, bio, education, experiences },
+        body: { avatar_url: avatarUrl, cover_url: coverUrl, bio, phone, education, experiences },
       });
       toastSuccess("Public profile updated.");
     } catch (err) {
@@ -259,12 +306,20 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
                 <CardDescription>Upload a PDF to auto-extract skills, experience, and preferences.</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-3">
-                  <Input ref={fileRef} type="file" accept=".pdf,application/pdf" className="flex-1" />
-                  <Button onClick={handleUpload} disabled={uploading} className="gap-2">
-                    <Upload className="h-4 w-4" />
-                    {uploading ? "Parsing…" : "Upload"}
-                  </Button>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <Input ref={fileRef} type="file" accept=".pdf,application/pdf" className="flex-1" />
+                    <Button onClick={handleUpload} disabled={uploading} className="gap-2">
+                      <Upload className="h-4 w-4" />
+                      {uploading ? "Parsing…" : "Upload"}
+                    </Button>
+                  </div>
+                  {uploading && uploadProgress > 0 && (
+                    <div className="space-y-1">
+                      <Progress value={uploadProgress} className="h-2 w-full transition-all duration-300" />
+                      <p className="text-xs text-muted-foreground text-right">{uploadProgress}% - Analyzing CV content...</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -406,7 +461,11 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
               </CardHeader>
               <CardContent>
                 <form onSubmit={submit} className="space-y-3">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Date of Birth <span className="text-destructive">*</span></Label>
+                      <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required />
+                    </div>
                     <div className="space-y-1.5">
                       <Label>Experience Level</Label>
                       <select
@@ -428,7 +487,14 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
                       <Input type="number" value={salaryMin} onChange={(e) => setSalaryMin(Number(e.target.value))} />
                     </div>
                   </div>
-                  <Button type="submit" className="w-full">Save Profile</Button>
+                  <div className="flex gap-2 pt-2">
+                    {backup && (
+                      <Button type="button" variant="outline" onClick={undoUpload} className="w-1/3 border-destructive text-destructive hover:bg-destructive/10">
+                        Undo
+                      </Button>
+                    )}
+                    <Button type="submit" className="flex-1">Save Profile</Button>
+                  </div>
                 </form>
               </CardContent>
             </Card>
@@ -470,6 +536,11 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
                       <img src={coverUrl} alt="Cover preview" className="h-20 w-full rounded-md border object-cover" />
                     )}
                   </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Phone Number</Label>
+                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+84..." />
                 </div>
 
                 <div className="space-y-1.5">

@@ -136,7 +136,7 @@ def parse_cv_with_gemini(file_bytes: bytes) -> GeminiParseResult:
         logger.info("Sending %d page(s) to Gemini Vision for analysis...", len(images))
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-flash-latest",
             contents=contents,
             config=types.GenerateContentConfig(
                 temperature=0.1,
@@ -221,63 +221,3 @@ def _json_to_extraction(data: dict, file_bytes: bytes) -> CVExtraction:
     )
 
 
-# ---------------------------------------------------------------------------
-# Gemini Embedding for CV vectorisation
-# ---------------------------------------------------------------------------
-
-def embed_text(text: str) -> list[float]:
-    """Generate a dense embedding vector using Gemini."""
-    client = _get_client()
-    result = client.models.embed_content(
-        model="gemini-embedding-001",
-        contents=text,
-    )
-    return list(result.embeddings[0].values)
-
-
-def embed_skills(skills: list[dict]) -> list[float]:
-    """Embed a structured skill list as a descriptive text.
-
-    Converts ``[{name: "python", level: 5}, ...]`` to a natural-language
-    description that captures both skill names and proficiency, then
-    generates a Gemini embedding.
-    """
-    level_words = {1: "beginner", 2: "elementary", 3: "intermediate", 4: "advanced", 5: "expert"}
-    parts = []
-    for s in skills:
-        name = s.get("name", "")
-        level = s.get("level", 3)
-        word = level_words.get(level, "intermediate")
-        parts.append(f"{word} {name}")
-    text = ", ".join(parts) if parts else "no skills"
-    return embed_text(text)
-
-
-def batch_cosine_with_gemini_embeddings(
-    target_skills: list[dict],
-    candidate_skills_list: list[list[dict]],
-) -> list[float]:
-    """Compute cosine similarity between one target and multiple candidates
-    using Gemini embeddings.
-    """
-    import numpy as np
-
-    if not candidate_skills_list:
-        return []
-
-    target_vec = np.array(embed_skills(target_skills), dtype=np.float64)
-    target_norm = np.linalg.norm(target_vec)
-    if target_norm < 1e-10:
-        return [0.0] * len(candidate_skills_list)
-    target_vec = target_vec / target_norm
-
-    scores = []
-    for cand_skills in candidate_skills_list:
-        cand_vec = np.array(embed_skills(cand_skills), dtype=np.float64)
-        cand_norm = np.linalg.norm(cand_vec)
-        if cand_norm < 1e-10:
-            scores.append(0.0)
-        else:
-            cand_vec = cand_vec / cand_norm
-            scores.append(float(np.dot(target_vec, cand_vec)))
-    return scores

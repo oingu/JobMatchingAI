@@ -495,10 +495,12 @@ def get_my_candidate_profile(
     return api_ok({
         "profile_id": profile.id,
         "user_id": profile.user_id,
+        "phone": current_user.phone,
         "skills": profile.skills if isinstance(profile.skills, list) else [],
         "experience_level": profile.experience_level,
         "preferred_locations": profile.preferred_locations,
         "preferred_salary_min": profile.preferred_salary_min,
+        "birth_date": profile.birth_date,
         "avatar_url": profile.avatar_url,
         "cover_url": profile.cover_url,
         "bio": profile.bio,
@@ -522,6 +524,8 @@ def create_or_update_candidate_profile(
     if not user:
         raise HTTPException(status_code=404, detail="Candidate user not found.")
 
+    user.phone = payload.phone
+
     skills_json = [s.model_dump() for s in payload.skills]
     locations_csv = ",".join(payload.preferred_locations)
     profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == payload.user_id).first()
@@ -530,6 +534,7 @@ def create_or_update_candidate_profile(
         profile.experience_level = payload.experience_level
         profile.preferred_locations = locations_csv
         profile.preferred_salary_min = payload.preferred_salary_min
+        profile.birth_date = payload.birth_date
         profile.updated_at = now_utc()
     else:
         profile = CandidateProfile(
@@ -538,6 +543,7 @@ def create_or_update_candidate_profile(
             experience_level=payload.experience_level,
             preferred_locations=locations_csv,
             preferred_salary_min=payload.preferred_salary_min,
+            birth_date=payload.birth_date,
             last_login_at=now_utc(),
             updated_at=now_utc(),
         )
@@ -590,61 +596,16 @@ async def upload_cv(
             "parsed": extraction.to_dict(),
             "profile_updated": False,
             "parser": parser_used,
-            "gemini_error": parser_error,
-            "message": "Could not extract skills from the CV. Please update your profile manually.",
+            "error": parser_error,
+            "message": "Could not extract skills from the CV.",
         })
 
-    skills_json = [{"name": s["name"], "level": s["level"]} for s in extraction.skills]
-    locations_csv = ",".join(extraction.locations) if extraction.locations else ""
-
-    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == current_user.id).first()
-    if profile:
-        profile.skills = skills_json
-        profile.experience_level = extraction.experience_level
-        if locations_csv:
-            profile.preferred_locations = locations_csv
-        if extraction.salary_min > 0:
-            profile.preferred_salary_min = extraction.salary_min
-        profile.updated_at = now_utc()
-    else:
-        profile = CandidateProfile(
-            user_id=current_user.id,
-            skills=skills_json,
-            experience_level=extraction.experience_level,
-            preferred_locations=locations_csv,
-            preferred_salary_min=extraction.salary_min,
-            last_login_at=now_utc(),
-            updated_at=now_utc(),
-        )
-        db.add(profile)
-    db.commit()
-    db.refresh(profile)
-
-    event = enqueue_event(
-        db,
-        event_type="candidate_profile_updated",
-        payload={
-            "candidate_id": current_user.id,
-            "profile_id": profile.id,
-            "source": "cv_upload",
-            "timestamp": now_utc().isoformat(),
-        },
-    )
-    audit(
-        db,
-        action="cv_uploaded",
-        resource_type="candidate_profile",
-        resource_id=str(profile.id),
-        actor_user_id=current_user.id,
-        detail={"skills_found": len(extraction.skills), "filename": file.filename, "parser": parser_used},
-    )
     return api_ok({
         "parsed": extraction.to_dict(),
-        "profile_id": profile.id,
-        "event_id": event.id,
-        "profile_updated": True,
+        "profile_updated": False,
         "parser": parser_used,
-        "gemini_error": parser_error,
+        "error": parser_error,
+        "message": "CV parsed successfully. Please review the extracted information and click Save Profile to confirm.",
     })
 
 
@@ -660,6 +621,9 @@ def create_or_update_recruiter_profile(
     user = db.query(User).filter(User.id == payload.user_id, User.role == "recruiter").first()
     if not user:
         raise HTTPException(status_code=404, detail="Recruiter user not found.")
+        
+    user.phone = payload.phone
+    
     profile = db.query(RecruiterProfile).filter(RecruiterProfile.user_id == payload.user_id).first()
     if profile:
         profile.company_name = payload.company_name
@@ -683,6 +647,7 @@ def get_my_recruiter_profile(
         return api_ok(None)
     return api_ok({
         "id": profile.id,
+        "phone": current_user.phone,
         "company_name": profile.company_name,
         "company_website": profile.company_website,
         "company_phone": profile.company_phone,
@@ -709,6 +674,10 @@ def update_candidate_public_profile(
     profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == current_user.id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Candidate profile not found.")
+    
+    if "phone" in payload:
+        current_user.phone = str(payload["phone"]).strip()
+
     profile.avatar_url = str(payload.get("avatar_url", profile.avatar_url or "")).strip()
     profile.cover_url = str(payload.get("cover_url", profile.cover_url or "")).strip()
     profile.bio = str(payload.get("bio", profile.bio or "")).strip()
@@ -736,7 +705,7 @@ def get_candidate_public_profile(
         "name": user.name,
         "email": user.email,
         "phone": user.phone,
-        "dob": user.date_of_birth,
+        "dob": profile.birth_date,
         "avatar_url": profile.avatar_url,
         "cover_url": profile.cover_url,
         "bio": profile.bio,
@@ -759,6 +728,10 @@ def update_recruiter_public_profile(
     profile = db.query(RecruiterProfile).filter(RecruiterProfile.user_id == current_user.id).first()
     if not profile:
         raise HTTPException(status_code=404, detail="Recruiter profile not found.")
+    
+    if "phone" in payload:
+        current_user.phone = str(payload["phone"]).strip()
+
     profile.avatar_url = str(payload.get("avatar_url", profile.avatar_url or "")).strip()
     profile.cover_url = str(payload.get("cover_url", profile.cover_url or "")).strip()
     profile.bio = str(payload.get("bio", profile.bio or "")).strip()
@@ -1622,7 +1595,7 @@ def recruiter_dashboard(
                 "candidate_name": cand_user.name if cand_user else "Unknown",
                 "candidate_email": cand_user.email if cand_user else "",
                 "candidate_phone": cand_user.phone if cand_user else "",
-                "candidate_dob": cand_user.date_of_birth if cand_user else "",
+                "candidate_dob": cand_profile.birth_date if cand_profile else "",
                 "skills": cand_profile.skills if cand_profile else [],
                 "experience_level": cand_profile.experience_level if cand_profile else "",
                 "skill_match": row.skill_match,

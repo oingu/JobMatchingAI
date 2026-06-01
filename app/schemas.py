@@ -35,11 +35,14 @@ class CandidateProfileCreate(BaseModel):
     experience_level: Literal["junior", "middle", "senior"]
     preferred_locations: Annotated[list[str], Field(min_length=1)]
     preferred_salary_min: int = Field(ge=0)
+    birth_date: str = Field(min_length=4)
+    phone: str = Field(default="")
 
 
 class RecruiterProfileCreate(BaseModel):
     user_id: int
     company_name: Annotated[str, Field(min_length=2, max_length=255)]
+    phone: str = Field(default="")
 
 
 class JobCreate(BaseModel):

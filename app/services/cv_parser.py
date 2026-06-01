@@ -29,6 +29,9 @@ import pdfplumber
 
 logger = logging.getLogger(__name__)
 
+# Suppress pdfminer FontBBox warnings to keep terminal logs clean
+logging.getLogger("pdfminer").setLevel(logging.ERROR)
+
 MIN_TEXT_LENGTH = 80
 
 

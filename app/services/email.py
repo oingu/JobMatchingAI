@@ -9,6 +9,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from html import escape
+import re
 
 from app.config import settings
 
@@ -58,7 +59,9 @@ def send_email(to_email: str, subject: str, body_text: str, body_html: str | Non
 
 def build_notification_email(title: str, body: str) -> tuple[str, str]:
     """Build plain-text and HTML versions of a notification email."""
-    text = f"{title}\n\n{body}\n\n— JobMatch AI"
+    # Clean markdown links for plain text version
+    clean_body = re.sub(r'\[([^\]]+)\]\((https?://[^)]+)\)', r'\1 (\2)', body)
+    text = f"{title}\n\n{clean_body}\n\n— JobMatch AI"
 
     lines = [line.strip() for line in body.splitlines() if line.strip()]
     structured_rows: list[str] = []
@@ -67,13 +70,20 @@ def build_notification_email(title: str, body: str) -> tuple[str, str]:
         if ":" in line:
             key, value = line.split(":", 1)
             if key.strip() and value.strip():
-                value_html = escape(value.strip())
-                if value.strip().startswith(("http://", "https://")):
-                    safe_url = escape(value.strip(), quote=True)
+                value_str = value.strip()
+                match = re.search(r'^\[([^\]]+)\]\((https?://[^)]+)\)$', value_str)
+                if match:
+                    display_text = escape(match.group(1))
+                    href = escape(match.group(2), quote=True)
+                    value_html = f'<a href="{href}" style="color:#0f172a;text-decoration:underline;">{display_text}</a>'
+                elif value_str.startswith(("http://", "https://")):
+                    safe_url = escape(value_str, quote=True)
                     value_html = (
                         f'<a href="{safe_url}" style="color:#0f172a;text-decoration:underline;">'
-                        f"{escape(value.strip())}</a>"
+                        f"{escape(value_str)}</a>"
                     )
+                else:
+                    value_html = escape(value_str)
                 structured_rows.append(
                     f"""
     <tr>

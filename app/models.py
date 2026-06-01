@@ -40,6 +40,7 @@ class CandidateProfile(Base):
     experience_level = Column(String(50), default="junior", nullable=False)
     preferred_locations = Column(Text, default="", nullable=False)
     preferred_salary_min = Column(Integer, default=0, nullable=False)
+    birth_date = Column(String(20), default="", nullable=False)
     avatar_url = Column(String(500), default="", nullable=False)
     cover_url = Column(String(500), default="", nullable=False)
     bio = Column(Text, default="", nullable=False)

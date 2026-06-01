@@ -23,6 +23,7 @@ type Mine = {
   cover_url: string;
   bio: string;
   overview: Array<{ title?: string; value?: string }>;
+  phone: string;
 };
 
 export default function RecruiterProfilePage() {
@@ -39,6 +40,7 @@ function Content({ session }: { session: SessionData }) {
   const [companyAddress, setCompanyAddress] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
+  const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
   const [overviewText, setOverviewText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -55,6 +57,7 @@ function Content({ session }: { session: SessionData }) {
           setCompanyAddress(res.data.company_address || "");
           setAvatarUrl(res.data.avatar_url || "");
           setCoverUrl(res.data.cover_url || "");
+          setPhone(res.data.phone || "");
           setBio(res.data.bio || "");
           setOverviewText(
             (res.data.overview || [])
@@ -86,6 +89,7 @@ function Content({ session }: { session: SessionData }) {
         session,
         body: {
           company_address: companyAddress,
+          phone,
           avatar_url: avatarUrl,
           cover_url: coverUrl,
           bio,
@@ -167,6 +171,10 @@ function Content({ session }: { session: SessionData }) {
             <div className="space-y-2">
               <Label>Company Address (for map)</Label>
               <Input value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} placeholder="Building, street, city" />
+            </div>
+            <div className="space-y-2">
+              <Label>Phone Number</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+84..." />
             </div>
             <div className="space-y-2">
               <Label>Bio</Label>

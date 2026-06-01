@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Briefcase, GraduationCap, MapPin, Mail, Phone } from "lucide-react";
+import { Briefcase, GraduationCap, MapPin, Mail, Phone, Calendar } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -99,6 +99,7 @@ export default function CandidatePublicProfilePage() {
               <div className="mt-2 flex flex-wrap gap-3 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1"><Mail className="h-4 w-4" />{data.email}</span>
                 {data.phone && <span className="inline-flex items-center gap-1"><Phone className="h-4 w-4" />{data.phone}</span>}
+                {data.dob && <span className="inline-flex items-center gap-1"><Calendar className="h-4 w-4" />{data.dob}</span>}
                 {data.preferred_locations && <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4" />{data.preferred_locations}</span>}
               </div>
               {data.bio && <p className="mt-3 text-sm leading-relaxed text-foreground/90">{data.bio}</p>}
@@ -149,7 +150,7 @@ export default function CandidatePublicProfilePage() {
               </h3>
               {data.experiences?.length ? data.experiences.map((e, idx) => (
                 <div key={idx} className="mb-3 rounded-lg border bg-muted/20 p-3 last:mb-0">
-                  <p className="font-medium">{e.role || "Role"} {e.company ? `@ ${e.company}` : ""}</p>
+                  <p className="font-medium">{e.role || "Role"} {e.company ? `at ${e.company}` : ""}</p>
                   {e.period && <p className="text-sm text-muted-foreground">{e.period}</p>}
                   {e.description && <p className="mt-1 text-sm text-foreground/90">{e.description}</p>}
                 </div>

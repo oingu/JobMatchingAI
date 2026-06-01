@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: jobmatch_db_prod
+    restart: always
+    ports:
+      - "127.0.0.1:5432:5432" # Chỉ cho phép truy cập cục bộ từ VPS để bảo mật
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: production_strong_password
+      POSTGRES_DB: jobmatch
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jobmatch_backend_prod
+    restart: always
+    ports:
+      - "127.0.0.1:8000:8000" # Nginx reverse proxy sẽ chuyển hướng traffic vào đây
+    environment:
+      - DATABASE_URL=postgresql://postgres:production_strong_password@db:5432/jobmatch
+      - FRONTEND_ORIGIN=https://yourdomain.com # Cập nhật tên miền của bạn
+      # Nhớ nạp thêm các key API (Gemini, SMTP, v.v.) vào file .env trên server
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: jobmatch_frontend_prod
+    restart: always
+    ports:
+      - "127.0.0.1:3000:3000" # Nginx reverse proxy sẽ chuyển hướng traffic vào đây
+    environment:
+      - NEXT_PUBLIC_API_URL=https://api.yourdomain.com # Hoặc http://IP_VPS:8000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_prod_data:
