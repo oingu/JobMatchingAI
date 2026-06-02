@@ -129,3 +129,28 @@
     @apply font-sans;
   }
 }
+
+/* Custom premium visual classes from taste-skill guidelines */
+.frosted-glass {
+  background: rgba(9, 9, 11, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.emerald-glow-bg {
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0) 70%);
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tactile-active {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tactile-active:active {
+  transform: scale(0.98) translateY(1px);
+}

@@ -326,65 +326,72 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
 
             {/* Extraction Result (conditional) */}
             {extraction && (
-              <Card className="border-green-200 bg-green-50/50">
+              <Card className="border-emerald-500/20 bg-emerald-950/5 backdrop-blur-md">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Extraction Result</CardTitle>
+                    <CardTitle className="text-base text-zinc-100">Extraction Result</CardTitle>
                     {parserUsed && (
-                      <Badge variant={parserUsed === "gemini" ? "default" : "secondary"}>
+                      <Badge variant="outline" className="border-emerald-900/60 bg-emerald-950/20 text-emerald-400 text-[10px] font-mono">
                         {parserUsed === "gemini" ? "Gemini AI Vision" : "Regex + OCR"}
                       </Badge>
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
                   {geminiError && parserUsed === "regex" && (
-                    <Alert>
+                    <Alert className="border-amber-900/50 bg-amber-950/20 text-amber-500">
                       <AlertTriangle className="h-4 w-4" />
                       <AlertTitle>Gemini AI was not used</AlertTitle>
                       <AlertDescription className="text-xs">{geminiError}</AlertDescription>
                     </Alert>
                   )}
                   <div>
-                    <p className="mb-2 text-sm font-medium">
-                      Skills detected: <span className="font-bold text-green-700">{extraction.skills.length}</span>
+                    <p className="mb-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                      Skills detected: <span className="font-bold font-mono text-emerald-400 text-sm ml-1">{extraction.skills.length}</span>
                     </p>
                     {extraction.skills.length > 0 ? (
-                      <div className="space-y-1.5">
+                      <div className="space-y-2.5">
                         {extraction.skills.map((s) => (
-                          <div key={s.name} className="flex items-center gap-2">
-                            <span className="min-w-[90px] text-sm font-medium">{s.name}</span>
-                            <Progress value={(s.level / 5) * 100} className="h-2 flex-1" />
-                            <Badge variant="outline" className="min-w-[80px] justify-center text-xs">
+                          <div key={s.name} className="flex items-center gap-2.5">
+                            <span className="min-w-[90px] text-sm font-medium text-zinc-350 capitalize">{s.name}</span>
+                            <div className="h-1.5 flex-1 bg-zinc-950 rounded-full overflow-hidden border border-zinc-900/60 p-[1px]">
+                              <div
+                                className="h-full rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)] transition-all duration-500"
+                                style={{ width: `${(s.level / 5) * 100}%` }}
+                              />
+                            </div>
+                            <Badge variant="outline" className="min-w-[80px] justify-center text-[10px] font-mono bg-zinc-950/40 border-zinc-900 text-zinc-400">
                               Lv.{s.level} {LEVEL_LABELS[s.level]}
                             </Badge>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">None detected</p>
+                      <p className="text-sm text-zinc-500">None detected</p>
                     )}
                   </div>
-                  <Separator />
-                  <div className="grid grid-cols-2 gap-2 text-sm">
+                  
+                  <div className="h-[1px] bg-zinc-900/80 my-3" />
+
+                  <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
-                      <p className="text-muted-foreground">Experience</p>
-                      <p className="font-medium capitalize">
+                      <p className="text-zinc-500 font-mono uppercase tracking-wider text-[10px]">Experience</p>
+                      <p className="font-semibold capitalize text-zinc-300 mt-0.5">
                         {extraction.experience_level}
                         {extraction.years_of_experience !== null && ` (${extraction.years_of_experience}y)`}
                       </p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Locations</p>
-                      <p className="font-medium">{extraction.locations.length > 0 ? extraction.locations.join(", ") : "—"}</p>
+                      <p className="text-zinc-500 font-mono uppercase tracking-wider text-[10px]">Locations</p>
+                      <p className="font-semibold text-zinc-300 mt-0.5">{extraction.locations.length > 0 ? extraction.locations.join(", ") : "—"}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Min Salary</p>
-                      <p className="font-medium">{extraction.salary_min > 0 ? `$${extraction.salary_min.toLocaleString()}` : "—"}</p>
+                      <p className="text-zinc-500 font-mono uppercase tracking-wider text-[10px]">Min Salary</p>
+                      <p className="font-semibold text-zinc-300 mt-0.5">{extraction.salary_min > 0 ? `$${extraction.salary_min.toLocaleString()}` : "—"}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Text extracted</p>
-                      <p className="font-medium">{extraction.raw_text_length.toLocaleString()} chars</p>
+                      <p className="text-zinc-500 font-mono uppercase tracking-wider text-[10px]">Text extracted</p>
+                      <p className="font-semibold text-zinc-300 mt-0.5">{extraction.raw_text_length.toLocaleString()} chars</p>
                     </div>
                   </div>
                 </CardContent>

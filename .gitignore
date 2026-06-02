@@ -6,3 +6,6 @@ job_matching.db
 .next/
 uploads/
 .pytest_cache/
+taste-skill/
+.DS_Store
+**/.DS_Store

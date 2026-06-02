@@ -3,10 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Zap } from "lucide-react";
+import { Zap, Sparkles, User, Briefcase } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/toast";
@@ -64,115 +63,155 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted p-6">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-            <Zap className="h-5 w-5 text-primary-foreground" />
+    <div className="relative flex min-h-[100dvh] items-center justify-center bg-zinc-950 p-6 overflow-hidden select-none">
+      {/* Decorative Emerald Ambient Glows */}
+      <div className="emerald-glow-bg top-[-100px] left-[-100px] opacity-60"></div>
+      <div className="emerald-glow-bg bottom-[-100px] right-[-100px] opacity-40"></div>
+
+      {/* Main Register Card */}
+      <div className="relative w-full max-w-[480px] rounded-2xl border border-zinc-800/80 bg-zinc-900/40 backdrop-blur-xl p-8 shadow-2xl transition-all duration-300 hover:border-zinc-800">
+        
+        {/* Brand Header */}
+        <div className="text-center mb-6">
+          <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 shadow-md">
+            <Zap className="h-5 w-5 text-emerald-400 fill-emerald-400/10" />
           </div>
-          <CardTitle className="text-xl">Create an account</CardTitle>
-          <CardDescription>Sign up to start using JobMatch AI</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-zinc-800/80 bg-zinc-950/40 text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-2">
+            <Sparkles className="h-3 w-3 text-emerald-400" />
+            <span>Join JobMatch AI</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-50">Create an account</h1>
+          <p className="mt-1 text-sm text-zinc-400">Discover smart matches tailored to your profile</p>
+        </div>
+
+        {/* Register Form */}
+        <form onSubmit={onSubmit} className="space-y-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="name" className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+              Full Name
+            </Label>
+            <Input
+              id="name"
+              placeholder="Nguyen Van A"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="h-10 bg-zinc-950/50 border-zinc-800/80 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 text-zinc-100 placeholder:text-zinc-650 transition-all rounded-lg"
+              required
+              minLength={2}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+              Email Address
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="h-10 bg-zinc-950/50 border-zinc-800/80 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 text-zinc-100 placeholder:text-zinc-650 transition-all rounded-lg"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+                Password
+              </Label>
               <Input
-                id="name"
-                placeholder="Nguyen Van A"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                id="password"
+                type="password"
+                placeholder="••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-10 bg-zinc-950/50 border-zinc-800/80 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 text-zinc-100 placeholder:text-zinc-650 transition-all rounded-lg"
                 required
-                minLength={2}
+                minLength={6}
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm" className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+                Confirm
+              </Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="confirm"
+                type="password"
+                placeholder="••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="h-10 bg-zinc-950/50 border-zinc-800/80 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 text-zinc-100 placeholder:text-zinc-650 transition-all rounded-lg"
                 required
+                minLength={6}
               />
-              <p className="text-xs text-muted-foreground">
-                Use a real email — you will receive job matching notifications here.
-              </p>
             </div>
+          </div>
 
+          {/* Role selection */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">I am a</Label>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm">Confirm</Label>
-                <Input
-                  id="confirm"
-                  type="password"
-                  placeholder="••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
-              </div>
+              <button
+                type="button"
+                onClick={() => setRole("candidate")}
+                className={`relative rounded-xl border p-3.5 text-left transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+                  role === "candidate"
+                    ? "border-emerald-500 bg-emerald-500/5 shadow-md shadow-emerald-500/5"
+                    : "border-zinc-850 bg-zinc-950/30 hover:border-zinc-800 hover:bg-zinc-900/40"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <User className={`h-4 w-4 ${role === "candidate" ? "text-emerald-400" : "text-zinc-500"}`} />
+                  <p className="text-sm font-semibold text-zinc-200">Candidate</p>
+                </div>
+                <p className="text-xs text-zinc-500 leading-normal">Looking for engineering roles</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRole("recruiter")}
+                className={`relative rounded-xl border p-3.5 text-left transition-all duration-200 cursor-pointer active:scale-[0.98] ${
+                  role === "recruiter"
+                    ? "border-emerald-500 bg-emerald-500/5 shadow-md shadow-emerald-500/5"
+                    : "border-zinc-850 bg-zinc-950/30 hover:border-zinc-800 hover:bg-zinc-900/40"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Briefcase className={`h-4 w-4 ${role === "recruiter" ? "text-emerald-400" : "text-zinc-500"}`} />
+                  <p className="text-sm font-semibold text-zinc-200">Recruiter</p>
+                </div>
+                <p className="text-xs text-zinc-500 leading-normal">Hiring developer talent</p>
+              </button>
             </div>
+          </div>
 
-            {/* Role selection */}
-            <div className="space-y-2">
-              <Label>I am a</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setRole("candidate")}
-                  className={`rounded-lg border-2 p-3 text-left transition-colors ${
-                    role === "candidate"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/30"
-                  }`}
-                >
-                  <p className="text-sm font-semibold">Candidate</p>
-                  <p className="text-xs text-muted-foreground">Looking for a job</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("recruiter")}
-                  className={`rounded-lg border-2 p-3 text-left transition-colors ${
-                    role === "recruiter"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-muted-foreground/30"
-                  }`}
-                >
-                  <p className="text-sm font-semibold">Recruiter</p>
-                  <p className="text-xs text-muted-foreground">Hiring talent</p>
-                </button>
-              </div>
-            </div>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 bg-zinc-50 hover:bg-zinc-200 text-zinc-950 hover:shadow-lg active:scale-[0.98] transition-all font-medium rounded-lg text-sm flex items-center justify-center gap-2 mt-2"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-800 border-t-transparent" />
+                Creating account...
+              </span>
+            ) : (
+              "Create Account"
+            )}
+          </Button>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account…" : "Create Account"}
-            </Button>
-
-            <p className="text-center text-sm text-muted-foreground">
+          <div className="text-center pt-1.5">
+            <p className="text-xs text-zinc-500">
               Already have an account?{" "}
-              <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+              <Link href="/login" className="font-semibold text-emerald-400 hover:text-emerald-300 underline underline-offset-4 decoration-emerald-500/30 hover:decoration-emerald-400 transition-all">
                 Sign in
               </Link>
             </p>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

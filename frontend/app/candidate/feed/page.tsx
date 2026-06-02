@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import {
   Sheet,
   SheetContent,
@@ -314,230 +315,242 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
         ) : (
           <div className="space-y-4">
             {items.map((item, idx) => (
-              <Card key={`${item.job_id}-${idx}`} className="overflow-hidden py-0">
-                <CardContent className="p-0">
-                  <div className="flex">
-                    {/* Rank badge */}
-                    <div className="flex w-14 shrink-0 flex-col items-center justify-center border-r bg-muted/50">
-                      <span className="text-lg font-bold">{idx + 1}</span>
-                      <span className="text-[10px] uppercase text-muted-foreground">
-                        rank
-                      </span>
-                    </div>
+              <div
+                key={`${item.job_id}-${idx}`}
+                className="group relative border border-zinc-900 bg-zinc-900/10 hover:bg-zinc-900/20 rounded-xl overflow-hidden transition-all duration-300 hover:border-zinc-800 hover:-translate-y-[1px] flex"
+              >
+                {/* Rank badge */}
+                <div className="flex w-12 shrink-0 flex-col items-center justify-center border-r border-zinc-900/60 bg-zinc-950/40 select-none">
+                  <span className="text-sm font-mono font-bold text-zinc-500 group-hover:text-emerald-400 transition-colors">#{idx + 1}</span>
+                  <span className="text-[8px] font-mono uppercase tracking-wider text-zinc-650 mt-0.5">
+                    rank
+                  </span>
+                </div>
 
-                    <div className="flex-1 p-4">
-                      {/* Header */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-2.5">
-                          <h3
-                            className="cursor-pointer font-semibold hover:text-primary hover:underline"
-                            onClick={() => void openDetail(item)}
-                          >
-                            {item.job_title}
-                          </h3>
-                          <div className="flex items-center gap-2">
-                            <Avatar size="sm">
-                              <AvatarImage src={item.company_avatar_url || undefined} alt={item.company || "Company"} />
-                              <AvatarFallback>
-                                {(item.company || "C").slice(0, 1).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            {item.recruiter_id ? (
-                              <Link href={`/recruiter/public/${item.recruiter_id}`} className="underline underline-offset-2 hover:text-foreground">
-                                {item.company || `Job #${item.job_id}`}
-                              </Link>
-                            ) : (
-                              <span>{item.company || `Job #${item.job_id}`}</span>
-                            )}
-                            {item.recruiter_verified ? (
-                              <Badge variant="default" className="gap-0.5 text-[9px] px-1.5 py-0">
-                                <ShieldCheck className="h-2.5 w-2.5" /> Verified
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="gap-0.5 text-[9px] px-1.5 py-0 text-amber-600 border-amber-300">
-                                <ShieldAlert className="h-2.5 w-2.5" /> Unverified
-                              </Badge>
-                            )}
-                            </p>
-                          </div>
-                          {(item.company_phone || item.company_website) && (
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-                              {item.company_phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{item.company_phone}</span>}
-                              {item.company_website && (
-                                <a
-                                  className="inline-flex items-center gap-1 underline underline-offset-2 hover:text-foreground"
-                                  href={toWebsiteUrl(item.company_website)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  <Globe className="h-3 w-3" />
-                                  {item.company_website}
-                                </a>
-                              )}
-                            </div>
-                          )}
-                          {item.brief_description && (
-                            <div className="mt-2 text-sm text-muted-foreground">
-                              <p>
-                                {expandedBriefJobs.has(item.job_id) || item.brief_description.length <= BRIEF_PREVIEW_LIMIT
-                                  ? item.brief_description
-                                  : `${item.brief_description.slice(0, BRIEF_PREVIEW_LIMIT)}...`}
-                              </p>
-                              {item.brief_description.length > BRIEF_PREVIEW_LIMIT && (
-                                <button
-                                  type="button"
-                                  className="mt-1 text-xs font-medium text-primary hover:underline"
-                                  onClick={() => toggleBrief(item.job_id)}
-                                >
-                                  {expandedBriefJobs.has(item.job_id) ? "Show less" : "Read more"}
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xl font-bold">
-                            {(item.score * 100).toFixed(0)}%
-                          </p>
-                          <p className="text-[10px] uppercase text-muted-foreground">
-                            match
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Tags */}
-                      <div className="mt-3.5 flex flex-wrap gap-1.5">
-                        {item.location && (
-                          <Badge
-                            variant="secondary"
-                            className="gap-1 text-xs capitalize"
-                          >
-                            <MapPin className="h-3 w-3" /> {item.location}
-                          </Badge>
-                        )}
-                        {item.experience_level && (
-                          <Badge
-                            variant="secondary"
-                            className="text-xs capitalize"
-                          >
-                            {item.experience_level}
-                          </Badge>
-                        )}
-                        {(item.salary_min > 0 || item.salary_max > 0) && (
-                          <Badge
-                            variant="secondary"
-                            className="gap-1 text-xs"
-                          >
-                            <DollarSign className="h-3 w-3" />
-                            {formatSalary(item.salary_min)} –{" "}
-                            {formatSalary(item.salary_max)}
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Dates */}
-                      {(item.created_at || item.start_date || item.end_date) && (
-                        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
-                          {item.created_at && (
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              Posted {new Date(item.created_at).toLocaleDateString()}
-                            </span>
-                          )}
-                          {item.start_date && (
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              Start {new Date(item.start_date).toLocaleDateString()}
-                            </span>
-                          )}
-                          {item.end_date && (
-                            <span className="flex items-center gap-1 font-medium text-orange-600">
-                              <Calendar className="h-3 w-3" />
-                              Deadline {new Date(item.end_date).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Required skills */}
-                      {item.required_skills?.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-1">
-                          {item.required_skills.map((s) => (
-                            <Badge
-                              key={s.name}
-                              variant="outline"
-                              className="text-xs"
-                            >
-                              {s.name}{" "}
-                              <span className="ml-1 text-muted-foreground">
-                                Lv.{s.level}
-                              </span>
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Score breakdown */}
-                      <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
-                        {[
-                          { label: "Skill", value: item.skill_match },
-                          { label: "Preference", value: item.preference_match },
-                          { label: "Activity", value: item.activity_score },
-                        ].map((s) => (
-                          <div key={s.label} className="space-y-1">
-                            <div className="flex justify-between text-muted-foreground">
-                              <span>{s.label}</span>
-                              <span className="font-medium text-foreground">
-                                {(s.value * 100).toFixed(0)}%
-                              </span>
-                            </div>
-                            <Progress value={s.value * 100} className="h-1.5" />
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="mt-3 flex gap-2 border-t pt-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1 text-xs"
-                          onClick={() => void openDetail(item)}
-                        >
-                          <Eye className="h-3.5 w-3.5" /> View Details
-                        </Button>
-                        <Button
-                          variant={savedJobs.has(item.job_id) ? "secondary" : "outline"}
-                          size="sm"
-                          className="gap-1 text-xs"
-                          onClick={() => void track(item.job_id, "click")}
-                        >
-                          <Bookmark className="h-3.5 w-3.5" />
-                          {savedJobs.has(item.job_id) ? "Saved" : "Save"}
-                        </Button>
-                        {appliedJobs.has(item.job_id) ? (
-                          <Button
-                            size="sm"
-                            disabled
-                            className="gap-1 text-xs opacity-100"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Applied
-                          </Button>
+                <div className="flex-1 p-5">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-2.5 flex-1">
+                      <h3
+                        className="cursor-pointer text-base font-semibold text-zinc-100 hover:text-emerald-400 transition-colors"
+                        onClick={() => void openDetail(item)}
+                      >
+                        {item.job_title}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <Avatar size="sm" className="border border-zinc-800/80">
+                          <AvatarImage src={item.company_avatar_url || undefined} alt={item.company || "Company"} />
+                          <AvatarFallback className="bg-zinc-900 text-[10px] text-zinc-400">
+                            {(item.company || "C").slice(0, 1).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <p className="flex items-center gap-1.5 text-xs text-zinc-400">
+                        {item.recruiter_id ? (
+                          <Link href={`/recruiter/public/${item.recruiter_id}`} className="underline underline-offset-2 hover:text-zinc-200 transition-colors">
+                            {item.company || `Job #${item.job_id}`}
+                          </Link>
                         ) : (
-                          <Button
-                            size="sm"
-                            className="gap-1 text-xs"
-                            onClick={() => openApplyDialog(item.job_id, item.job_title)}
-                          >
-                            <Send className="h-3.5 w-3.5" /> Apply
-                          </Button>
+                          <span>{item.company || `Job #${item.job_id}`}</span>
                         )}
+                        {item.recruiter_verified ? (
+                          <Badge variant="outline" className="gap-0.5 text-[9px] px-1.5 py-0 border-emerald-900/60 bg-emerald-950/20 text-emerald-400">
+                            <ShieldCheck className="h-2.5 w-2.5" /> Verified
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="gap-0.5 text-[9px] px-1.5 py-0 border-amber-900/60 bg-amber-950/20 text-amber-550">
+                            <ShieldAlert className="h-2.5 w-2.5" /> Unverified
+                          </Badge>
+                        )}
+                        </p>
                       </div>
+                      {(item.company_phone || item.company_website) && (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-500">
+                          {item.company_phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{item.company_phone}</span>}
+                          {item.company_website && (
+                            <a
+                              className="inline-flex items-center gap-1 underline underline-offset-2 hover:text-zinc-300 transition-colors"
+                              href={toWebsiteUrl(item.company_website)}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <Globe className="h-3 w-3" />
+                              {item.company_website}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      {item.brief_description && (
+                        <div className="mt-2 text-sm text-zinc-450 leading-relaxed max-w-[65ch]">
+                          <p>
+                            {expandedBriefJobs.has(item.job_id) || item.brief_description.length <= BRIEF_PREVIEW_LIMIT
+                              ? item.brief_description
+                              : `${item.brief_description.slice(0, BRIEF_PREVIEW_LIMIT)}...`}
+                          </p>
+                          {item.brief_description.length > BRIEF_PREVIEW_LIMIT && (
+                            <button
+                              type="button"
+                              className="mt-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 underline underline-offset-4 decoration-emerald-500/20 hover:decoration-emerald-400 transition-all"
+                              onClick={() => toggleBrief(item.job_id)}
+                            >
+                              {expandedBriefJobs.has(item.job_id) ? "Show less" : "Read more"}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right bg-zinc-900/30 border border-zinc-850 px-3 py-1.5 rounded-lg select-none">
+                      <p className="text-lg font-mono font-bold text-emerald-400">
+                        {(item.score * 100).toFixed(0)}%
+                      </p>
+                      <p className="text-[8px] font-mono uppercase tracking-wider text-zinc-500">
+                        match
+                      </p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+
+                  {/* Tags */}
+                  <div className="mt-3.5 flex flex-wrap gap-1.5">
+                    {item.location && (
+                      <Badge
+                        variant="secondary"
+                        className="gap-1 text-xs capitalize bg-zinc-900/40 border border-zinc-850 text-zinc-300 hover:bg-zinc-900/40"
+                      >
+                        <MapPin className="h-3 w-3 text-zinc-500" /> {item.location}
+                      </Badge>
+                    )}
+                    {item.experience_level && (
+                      <Badge
+                        variant="secondary"
+                        className="text-xs capitalize bg-zinc-900/40 border border-zinc-850 text-zinc-300 hover:bg-zinc-900/40"
+                      >
+                        {item.experience_level}
+                      </Badge>
+                    )}
+                    {(item.salary_min > 0 || item.salary_max > 0) && (
+                      <Badge
+                        variant="secondary"
+                        className="gap-1 text-xs bg-zinc-900/40 border border-zinc-850 text-zinc-300 hover:bg-zinc-900/40"
+                      >
+                        <DollarSign className="h-3 w-3 text-zinc-500" />
+                        {formatSalary(item.salary_min)} –{" "}
+                        {formatSalary(item.salary_max)}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Dates */}
+                  {(item.created_at || item.start_date || item.end_date) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] font-mono text-zinc-500">
+                      {item.created_at && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Posted {new Date(item.created_at).toLocaleDateString()}
+                        </span>
+                      )}
+                      {item.start_date && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Start {new Date(item.start_date).toLocaleDateString()}
+                        </span>
+                      )}
+                      {item.end_date && (
+                        <span className="flex items-center gap-1 font-semibold text-rose-500">
+                          <Calendar className="h-3 w-3" />
+                          Deadline {new Date(item.end_date).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Required skills */}
+                  {item.required_skills?.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {item.required_skills.map((s) => (
+                        <Badge
+                          key={s.name}
+                          variant="outline"
+                          className="text-[10px] font-mono bg-zinc-950/40 border-zinc-900 text-zinc-400 rounded-md"
+                        >
+                          {s.name}{" "}
+                          <span className="ml-1 text-zinc-650">
+                            Lv.{s.level}
+                          </span>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Score breakdown */}
+                  <div className="mt-4.5 grid grid-cols-3 gap-4 text-xs">
+                    {[
+                      { label: "Skills", value: item.skill_match, colorClass: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]", textClass: "text-emerald-400" },
+                      { label: "Preferences", value: item.preference_match, colorClass: "bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.3)]", textClass: "text-cyan-400" },
+                      { label: "Engagement", value: item.activity_score, colorClass: "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.3)]", textClass: "text-amber-400" },
+                    ].map((s) => (
+                      <div key={s.label} className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                          <span>{s.label}</span>
+                          <span className={cn("font-bold", s.textClass)}>
+                            {(s.value * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-zinc-950 rounded-full overflow-hidden border border-zinc-900/60 p-[1px]">
+                          <div
+                            className={cn("h-full rounded-full transition-all duration-500", s.colorClass)}
+                            style={{ width: `${s.value * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-4 flex items-center justify-between border-t border-zinc-900/60 pt-3.5">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs text-zinc-400 border-zinc-900 hover:border-zinc-800 hover:bg-zinc-900/40 hover:text-zinc-200 transition-all rounded-lg cursor-pointer active:scale-[0.98]"
+                        onClick={() => void openDetail(item)}
+                      >
+                        <Eye className="h-3.5 w-3.5" /> View Details
+                      </Button>
+                      <Button
+                        variant={savedJobs.has(item.job_id) ? "secondary" : "outline"}
+                        size="sm"
+                        className={cn(
+                          "gap-1.5 text-xs transition-all rounded-lg cursor-pointer active:scale-[0.98]",
+                          savedJobs.has(item.job_id)
+                            ? "bg-zinc-900 border-zinc-800 text-zinc-200 hover:bg-zinc-800/85"
+                            : "text-zinc-400 border-zinc-900 hover:border-zinc-800 hover:bg-zinc-900/40 hover:text-zinc-200"
+                        )}
+                        onClick={() => void track(item.job_id, "click")}
+                      >
+                        <Bookmark className="h-3.5 w-3.5" />
+                        {savedJobs.has(item.job_id) ? "Saved" : "Save"}
+                      </Button>
+                    </div>
+
+                    {appliedJobs.has(item.job_id) ? (
+                      <Button
+                        size="sm"
+                        disabled
+                        className="gap-1.5 text-xs bg-zinc-900 text-zinc-500 border border-zinc-850 opacity-100 rounded-lg"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Applied
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="gap-1.5 text-xs bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-semibold transition-all rounded-lg cursor-pointer active:scale-[0.98] shadow-md shadow-emerald-500/10"
+                        onClick={() => openApplyDialog(item.job_id, item.job_title)}
+                      >
+                        <Send className="h-3.5 w-3.5" /> Apply
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         )}

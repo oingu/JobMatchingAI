@@ -153,24 +153,24 @@ export function AppShell({ role, title, children }: AppShellProps) {
   }, [role, router, session, toast]);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-zinc-950 text-zinc-100">
       {/* Sidebar */}
-      <aside className="sticky top-0 flex h-screen w-60 flex-col border-r bg-card">
+      <aside className="sticky top-0 flex h-screen w-60 flex-col border-r border-zinc-900/80 bg-zinc-950/50 backdrop-blur-md select-none">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Zap className="h-4 w-4 text-primary-foreground" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-800 shadow-inner">
+            <Zap className="h-4 w-4 text-emerald-400 fill-emerald-400/5" />
           </div>
           <div>
-            <p className="text-sm font-bold tracking-tight">JobMatch AI</p>
-            <p className="text-[11px] text-muted-foreground">Intelligent Matching</p>
+            <p className="text-sm font-bold tracking-tight text-zinc-100">JobMatch AI</p>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">Matching Engine</p>
           </div>
         </div>
 
-        <Separator />
+        <div className="h-[1px] bg-zinc-900/80 mx-5" />
 
-        <ScrollArea className="flex-1 px-3 py-3">
-          <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            {role === "recruiter" ? "Recruiter" : "Candidate"}
+        <ScrollArea className="flex-1 px-3 py-4">
+          <p className="mb-2.5 px-2 text-[10px] font-mono uppercase tracking-widest text-zinc-600">
+            {role === "recruiter" ? "Recruiter console" : "Candidate portal"}
           </p>
           <nav className="space-y-1">
             {links.map((item) => {
@@ -180,81 +180,85 @@ export function AppShell({ role, title, children }: AppShellProps) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium border transition-all duration-200",
                     active
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                      ? "bg-zinc-900 border-zinc-800 text-zinc-100 shadow-sm shadow-black/20"
+                      : "border-transparent text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/40",
                   )}
                 >
-                  {item.icon}
-                  {item.label}
+                  <span className={cn("transition-colors", active ? "text-emerald-400" : "text-zinc-500")}>
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
+                  {active && (
+                    <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-400" />
+                  )}
                 </Link>
               );
             })}
           </nav>
         </ScrollArea>
-
       </aside>
 
       {/* Main content */}
-      <main className="flex h-screen flex-1 flex-col overflow-hidden">
-        <header className="sticky top-0 z-40 flex items-center justify-between border-b bg-background/95 px-6 py-4 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            <Briefcase className="h-5 w-5 text-muted-foreground" />
-            <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+      <main className="flex h-screen flex-1 flex-col overflow-hidden bg-zinc-950">
+        <header className="sticky top-0 z-40 flex items-center justify-between border-b border-zinc-900/80 bg-zinc-950/80 px-6 py-4 backdrop-blur-md">
+          <div className="flex items-center gap-2.5">
+            <Briefcase className="h-4 w-4 text-zinc-500" />
+            <h1 className="text-sm font-semibold tracking-tight text-zinc-200">{title}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <Badge variant="secondary" className="capitalize">
+            <Badge variant="outline" className="capitalize text-[10px] font-mono text-zinc-400 border-zinc-800 bg-zinc-900/30 px-2 py-0.5">
               {role}
             </Badge>
             {userName && (
               <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer">
-                  <span className="text-sm font-medium text-foreground">{userName}</span>
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary text-xs text-primary-foreground">
+                <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-full outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/50 cursor-pointer">
+                  <span className="text-xs font-semibold text-zinc-300 hover:text-zinc-100 transition-colors hidden sm:inline">{userName}</span>
+                  <Avatar className="h-7 w-7 border border-zinc-800">
+                    <AvatarFallback className="bg-zinc-900 text-[10px] font-bold text-zinc-300">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-850 text-zinc-200">
                   <DropdownMenuGroup>
                     <DropdownMenuLabel>
-                      <p className="text-sm font-medium">{userName}</p>
-                      <p className="text-xs text-muted-foreground">{session?.email}</p>
+                      <p className="text-xs font-bold text-zinc-200">{userName}</p>
+                      <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{session?.email}</p>
                     </DropdownMenuLabel>
                   </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-zinc-800" />
                   <DropdownMenuGroup>
                     <DropdownMenuItem
-                      className="gap-2 cursor-pointer"
+                      className="gap-2 cursor-pointer text-xs focus:bg-zinc-800 focus:text-zinc-100 hover:bg-zinc-800"
                       onClick={() => {
                         const dest = role === "admin" ? "/admin/settings" : role === "recruiter" ? "/recruiter/settings" : "/candidate/settings";
                         router.push(dest);
                       }}
                     >
-                      <Settings className="h-4 w-4" />
+                      <Settings className="h-3.5 w-3.5 text-zinc-550" />
                       Settings
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-zinc-800" />
                   <DropdownMenuGroup>
                     <DropdownMenuItem
-                      className="gap-2 cursor-pointer"
+                      className="gap-2 cursor-pointer text-xs focus:bg-zinc-800 focus:text-zinc-100 hover:bg-zinc-800"
                       onClick={() => {
                         clearSession();
                         router.replace("/login");
                       }}
                     >
-                      <LogOut className="h-4 w-4" />
+                      <LogOut className="h-3.5 w-3.5 text-zinc-550" />
                       Log out
                     </DropdownMenuItem>
                     {role !== "admin" && (
                       <DropdownMenuItem
-                        className="gap-2 cursor-pointer text-destructive focus:text-destructive"
+                        className="gap-2 cursor-pointer text-xs text-rose-450 focus:text-rose-400 focus:bg-rose-950/20 hover:bg-rose-950/10"
                         onClick={() => setDeleteDialogOpen(true)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                         Delete Account
                       </DropdownMenuItem>
                     )}
@@ -264,7 +268,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
             )}
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
+        <div className="flex-1 overflow-y-auto p-6 bg-zinc-950 select-text">{children}</div>
       </main>
 
       {/* Delete Account Confirmation */}

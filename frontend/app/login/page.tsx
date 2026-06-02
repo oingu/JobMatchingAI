@@ -3,10 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Zap } from "lucide-react";
+import { Zap, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/toast";
@@ -51,53 +50,86 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-            <Zap className="h-5 w-5 text-primary-foreground" />
+    <div className="relative flex min-h-[100dvh] items-center justify-center bg-zinc-950 p-6 overflow-hidden select-none">
+      {/* Decorative Emerald Ambient Glows */}
+      <div className="emerald-glow-bg top-[-100px] left-[-100px] opacity-60"></div>
+      <div className="emerald-glow-bg bottom-[-100px] right-[-100px] opacity-40"></div>
+
+      {/* Main Login Card */}
+      <div className="relative w-full max-w-[420px] rounded-2xl border border-zinc-800/80 bg-zinc-900/40 backdrop-blur-xl p-8 shadow-2xl transition-all duration-300 hover:border-zinc-800">
+        
+        {/* Brand Header */}
+        <div className="text-center mb-8">
+          <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-100 shadow-md">
+            <Zap className="h-5 w-5 text-emerald-400 fill-emerald-400/10" />
           </div>
-          <CardTitle className="text-xl">Welcome back</CardTitle>
-          <CardDescription>Sign in to your JobMatch AI account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-zinc-800/80 bg-zinc-950/40 text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-2">
+            <Sparkles className="h-3 w-3 text-emerald-400" />
+            <span>JobMatch AI Gateway</span>
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-50">Welcome back</h1>
+          <p className="mt-1.5 text-sm text-zinc-400">Sign in to resume matching candidates</p>
+        </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
-            </Button>
+        {/* Login Form */}
+        <form onSubmit={onSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+              Email Address
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="name@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="h-11 bg-zinc-950/50 border-zinc-800/80 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 text-zinc-100 placeholder:text-zinc-600 transition-all rounded-lg"
+              required
+            />
+          </div>
 
-            <p className="text-center text-sm text-muted-foreground">
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label htmlFor="password" className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">
+                Password
+              </Label>
+            </div>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-11 bg-zinc-950/50 border-zinc-800/80 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 text-zinc-100 placeholder:text-zinc-600 transition-all rounded-lg"
+              required
+            />
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 bg-zinc-50 hover:bg-zinc-200 text-zinc-950 hover:shadow-lg active:scale-[0.98] transition-all font-medium rounded-lg text-sm flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-800 border-t-transparent" />
+                Signing in...
+              </span>
+            ) : (
+              "Sign In"
+            )}
+          </Button>
+
+          <div className="text-center pt-2">
+            <p className="text-xs text-zinc-500">
               Don&apos;t have an account?{" "}
-              <Link href="/register" className="font-medium text-primary underline-offset-4 hover:underline">
-                Sign up
+              <Link href="/register" className="font-semibold text-emerald-400 hover:text-emerald-300 underline underline-offset-4 decoration-emerald-500/30 hover:decoration-emerald-400 transition-all">
+                Create account
               </Link>
             </p>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
