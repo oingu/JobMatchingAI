@@ -736,7 +736,25 @@ def update_recruiter_public_profile(
     require_role(current_user, "recruiter")
     profile = db.query(RecruiterProfile).filter(RecruiterProfile.user_id == current_user.id).first()
     if not profile:
-        raise HTTPException(status_code=404, detail="Recruiter profile not found.")
+        profile = RecruiterProfile(
+            user_id=current_user.id,
+            company_name=current_user.name or "My Company",
+            company_website="",
+            company_phone="",
+            company_fax="",
+            avatar_url="",
+            cover_url="",
+            bio="",
+            company_address="",
+            overview=[],
+            tax_id="",
+            business_license_path="",
+            verification_status="UNVERIFIED",
+            verification_note="",
+        )
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
     
     if "phone" in payload:
         current_user.phone = str(payload["phone"]).strip()
