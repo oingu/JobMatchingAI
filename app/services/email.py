@@ -52,6 +52,9 @@ def send_email(to_email: str, subject: str, body_text: str, body_html: str | Non
     except smtplib.SMTPException as exc:
         logger.error("SMTP error sending to %s: %s", to_email, exc)
         return False
+    except (OSError, smtplib.SMTPConnectError) as exc:
+        logger.warning("SMTP connection blocked or unreachable (commonly blocked on cloud free tiers like Render): %s", exc)
+        return False
     except Exception:
         logger.exception("Unexpected error sending email to %s", to_email)
         return False
