@@ -47,6 +47,9 @@ export default function CandidatePublicProfilePage() {
       try {
         const res = await apiRequest<CandidatePublic>(`/candidate-profiles/${params.id}/public`, { session: s });
         setData(res.data);
+      } catch (err) {
+        console.error("Failed to load candidate profile:", err);
+        setData(null);
       } finally {
         setLoading(false);
       }

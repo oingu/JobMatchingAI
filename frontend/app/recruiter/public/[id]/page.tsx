@@ -53,6 +53,9 @@ export default function RecruiterPublicProfilePage() {
       try {
         const res = await apiRequest<RecruiterPublic>(`/recruiter-profiles/${params.id}/public`, { session: s });
         setData(res.data);
+      } catch (err) {
+        console.error("Failed to load recruiter profile:", err);
+        setData(null);
       } finally {
         setLoading(false);
       }
