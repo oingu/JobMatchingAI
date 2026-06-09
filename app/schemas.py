@@ -56,6 +56,7 @@ class JobCreate(BaseModel):
     experience_level: Literal["junior", "middle", "senior"]
     start_date: datetime | None = None
     end_date: datetime | None = None
+    external_link: str = ""
 
     @model_validator(mode="after")
     def validate_salary(self) -> "JobCreate":
@@ -80,6 +81,7 @@ class JobUpdate(BaseModel):
     experience_level: Literal["junior", "middle", "senior"]
     start_date: datetime | None = None
     end_date: datetime | None = None
+    external_link: str = ""
 
     @model_validator(mode="after")
     def validate_salary(self) -> "JobUpdate":

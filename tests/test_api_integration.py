@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
-from app.database import Base, engine
+from app.database import Base, engine, SessionLocal
+from app.models import User
 from app.main import app
 
 
@@ -29,6 +30,14 @@ def test_auth_rbac_and_pagination_flow() -> None:
 
     recruiter_id = _create_user(client, "Recruiter", "recruiter-int@test.com", "recruiter")
     candidate_id = _create_user(client, "Candidate", "candidate-int@test.com", "candidate")
+
+    # Verify emails directly in DB for integration testing
+    db = SessionLocal()
+    try:
+        db.query(User).filter(User.id.in_([recruiter_id, candidate_id])).update({"email_verified": True}, synchronize_session=False)
+        db.commit()
+    finally:
+        db.close()
 
     recruiter_token = _login(client, "recruiter-int@test.com")
     candidate_token = _login(client, "candidate-int@test.com")

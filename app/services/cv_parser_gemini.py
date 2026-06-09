@@ -221,3 +221,42 @@ def _json_to_extraction(data: dict, file_bytes: bytes) -> CVExtraction:
     )
 
 
+def embed_skills(skills: list[dict]) -> list[float]:
+    """Convert a list of skills with levels to a dense embedding vector.
+
+    Format: level-text skill-name, e.g., 'expert python, intermediate sql'.
+    """
+    if not skills:
+        return [0.0] * 768
+
+    client = _get_client()
+
+    level_map = {
+        1: "beginner",
+        2: "elementary",
+        3: "intermediate",
+        4: "advanced",
+        5: "expert"
+    }
+
+    parts = []
+    for s in skills:
+        name = s.get("name", "").strip().lower()
+        level = s.get("level", 3)
+        level_text = level_map.get(level, "intermediate")
+        if name:
+            parts.append(f"{level_text} {name}")
+
+    text = ", ".join(parts)
+
+    response = client.models.embed_content(
+        model="text-embedding-004",
+        contents=text
+    )
+
+    if response.embeddings:
+        return response.embeddings[0].values
+    return [0.0] * 768
+
+
+

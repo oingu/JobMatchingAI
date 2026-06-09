@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Zap, Sparkles } from "lucide-react";
+import { Zap, Sparkles, ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +51,15 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-[100dvh] items-center justify-center bg-zinc-950 p-6 overflow-hidden select-none">
+      {/* Back button */}
+      <Link
+        href="/"
+        className="absolute top-6 left-6 inline-flex items-center gap-2 rounded-lg border border-zinc-800/80 bg-zinc-900/40 px-3.5 py-2 text-xs font-medium text-zinc-450 hover:text-zinc-100 hover:border-zinc-700 hover:bg-zinc-900/60 backdrop-blur-md transition-all duration-200 active:scale-[0.98] shadow-sm z-50 cursor-pointer"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        <span>Back to Home</span>
+      </Link>
+
       {/* Decorative Emerald Ambient Glows */}
       <div className="emerald-glow-bg top-[-100px] left-[-100px] opacity-60"></div>
       <div className="emerald-glow-bg bottom-[-100px] right-[-100px] opacity-40"></div>

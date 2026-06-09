@@ -23,7 +23,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,6 +94,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
     .toUpperCase()
     .slice(0, 2);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const hasInitializedNotificationWatermark = useRef(false);
   const lastSeenNotificationId = useRef(0);
   const pathnameRef = useRef(pathname);
@@ -101,6 +102,38 @@ export function AppShell({ role, title, children }: AppShellProps) {
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
+
+  useEffect(() => {
+    if (!session || role === "admin") {
+      setAvatarUrl(null);
+      return;
+    }
+
+    let active = true;
+
+    async function fetchAvatar() {
+      try {
+        if (role === "candidate") {
+          const res = await apiRequest<{ avatar_url?: string } | null>("/candidate-profiles/me", { session });
+          if (active) {
+            setAvatarUrl(res?.data?.avatar_url || null);
+          }
+        } else if (role === "recruiter") {
+          const res = await apiRequest<{ avatar_url?: string } | null>("/recruiter-profiles/mine", { session });
+          if (active) {
+            setAvatarUrl(res?.data?.avatar_url || null);
+          }
+        }
+      } catch {
+        if (active) setAvatarUrl(null);
+      }
+    }
+
+    void fetchAvatar();
+    return () => {
+      active = false;
+    };
+  }, [session, role, pathname]);
 
   useEffect(() => {
     if (!session || role === "admin") return;
@@ -216,6 +249,9 @@ export function AppShell({ role, title, children }: AppShellProps) {
                 <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-full outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/50 cursor-pointer">
                   <span className="text-xs font-semibold text-zinc-300 hover:text-zinc-100 transition-colors hidden sm:inline">{userName}</span>
                   <Avatar className="h-7 w-7 border border-zinc-800">
+                    {avatarUrl && (
+                      <AvatarImage src={avatarUrl} alt={userName} className="object-cover" />
+                    )}
                     <AvatarFallback className="bg-zinc-900 text-[10px] font-bold text-zinc-300">
                       {initials}
                     </AvatarFallback>

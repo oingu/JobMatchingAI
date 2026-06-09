@@ -66,6 +66,7 @@ interface JobItem {
   experience_level: string;
   start_date: string | null;
   end_date: string | null;
+  external_link: string;
   created_at: string | null;
   match_count: number;
   status: "active" | "scheduled" | "expired";
@@ -668,6 +669,7 @@ function CreateJobForm({
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [submitting, setSubmitting] = useState(false);
+  const [externalLink, setExternalLink] = useState("");
 
   const [newSkillName, setNewSkillName] = useState("");
   const [newSkillLevel, setNewSkillLevel] = useState(3);
@@ -697,6 +699,7 @@ function CreateJobForm({
         salary_min: salaryMin,
         salary_max: salaryMax,
         experience_level: experienceLevel,
+        external_link: externalLink,
       };
       if (startDate) body.start_date = startDate.toISOString();
       if (endDate) body.end_date = endDate.toISOString();
@@ -751,6 +754,15 @@ function CreateJobForm({
             placeholder="Describe key responsibilities, team, and expectations..."
             value={briefDescription}
             onChange={(e) => setBriefDescription(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="external-link">External Job Link (Optional)</Label>
+          <Input
+            id="external-link"
+            placeholder="e.g. https://company.com/careers/details"
+            value={externalLink}
+            onChange={(e) => setExternalLink(e.target.value)}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -933,6 +945,7 @@ function EditJobForm({
     job.end_date ? new Date(job.end_date) : undefined,
   );
   const [submitting, setSubmitting] = useState(false);
+  const [externalLink, setExternalLink] = useState(job.external_link || "");
 
   const [newSkillName, setNewSkillName] = useState("");
   const [newSkillLevel, setNewSkillLevel] = useState(3);
@@ -961,6 +974,7 @@ function EditJobForm({
         salary_min: salaryMin,
         salary_max: salaryMax,
         experience_level: experienceLevel,
+        external_link: externalLink,
       };
       if (startDate) body.start_date = startDate.toISOString();
       if (endDate) body.end_date = endDate.toISOString();
@@ -1014,6 +1028,15 @@ function EditJobForm({
             placeholder="Describe key responsibilities, team, and expectations..."
             value={briefDescription}
             onChange={(e) => setBriefDescription(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-external-link">External Job Link (Optional)</Label>
+          <Input
+            id="edit-external-link"
+            placeholder="e.g. https://company.com/careers/details"
+            value={externalLink}
+            onChange={(e) => setExternalLink(e.target.value)}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">

@@ -93,6 +93,7 @@ class Job(Base):
     experience_level = Column(String(50), default="junior", nullable=False)
     start_date = Column(DateTime(timezone=True), nullable=True)
     end_date = Column(DateTime(timezone=True), nullable=True)
+    external_link = Column(String(500), default="", nullable=False)
     created_at = Column(DateTime(timezone=True), default=now_utc, nullable=False)
 
     recruiter = relationship("User")

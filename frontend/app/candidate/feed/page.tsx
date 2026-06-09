@@ -18,6 +18,7 @@ import {
   Globe,
   ShieldCheck,
   ShieldAlert,
+  ExternalLink,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -76,6 +77,7 @@ type FeedItem = {
   start_date: string | null;
   end_date: string | null;
   created_at: string | null;
+  external_link: string;
 };
 
 type JobDetail = {
@@ -98,6 +100,7 @@ type JobDetail = {
   company_website: string;
   recruiter_verified: boolean;
   match_count: number;
+  external_link: string;
 };
 
 const LEVEL_LABELS: Record<number, string> = {
@@ -199,6 +202,24 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Action failed.");
     }
+  }
+
+  async function handleExternalLinkClick(jobId: number, externalLink: string) {
+    try {
+      await apiRequest("/interactions", {
+        method: "POST",
+        session,
+        body: {
+          user_id: session.userId,
+          job_id: jobId,
+          event_type: "click",
+          event_metadata: { source: "external_job_link", target: externalLink },
+        },
+      });
+    } catch (err) {
+      console.error("Failed to track interaction:", err);
+    }
+    window.open(externalLink, "_blank", "noopener,noreferrer");
   }
 
   function openApplyDialog(jobId: number, jobTitle: string) {
@@ -529,6 +550,16 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                         <Bookmark className="h-3.5 w-3.5" />
                         {savedJobs.has(item.job_id) ? "Saved" : "Save"}
                       </Button>
+                      {item.external_link && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs text-blue-400 border-blue-950/40 hover:border-blue-900/60 hover:bg-blue-950/20 hover:text-blue-300 transition-all rounded-lg cursor-pointer active:scale-[0.98]"
+                          onClick={() => handleExternalLinkClick(item.job_id, item.external_link)}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" /> Job Link
+                        </Button>
+                      )}
                     </div>
 
                     {appliedJobs.has(item.job_id) ? (
@@ -718,19 +749,28 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                 <div className="flex gap-2">
                   <Button
                     variant={savedJobs.has(detailJob.id) ? "secondary" : "outline"}
-                    className="flex-1 gap-1.5"
+                    className="flex-1 gap-1.5 text-xs"
                     onClick={() => void track(detailJob.id, "click")}
                   >
                     <Bookmark className="h-4 w-4" />
                     {savedJobs.has(detailJob.id) ? "Saved" : "Save Job"}
                   </Button>
+                  {detailJob.external_link && (
+                    <Button
+                      variant="outline"
+                      className="flex-1 gap-1.5 text-xs text-blue-400 border-blue-950/45 hover:border-blue-900/60 hover:bg-blue-950/20 hover:text-blue-300"
+                      onClick={() => handleExternalLinkClick(detailJob.id, detailJob.external_link)}
+                    >
+                      <ExternalLink className="h-4 w-4" /> Job Link
+                    </Button>
+                  )}
                   {appliedJobs.has(detailJob.id) ? (
-                    <Button disabled className="flex-1 gap-1.5">
+                    <Button disabled className="flex-1 gap-1.5 text-xs">
                       <CheckCircle2 className="h-4 w-4" /> Applied
                     </Button>
                   ) : (
                     <Button
-                      className="flex-1 gap-1.5"
+                      className="flex-1 gap-1.5 text-xs"
                       onClick={() => openApplyDialog(detailJob.id, detailJob.title)}
                     >
                       <Send className="h-4 w-4" /> Apply Now

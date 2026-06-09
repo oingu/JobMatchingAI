@@ -960,6 +960,12 @@ def admin_stats(
     total_apps = db.query(Application).count()
     pending_verifications = db.query(RecruiterProfile).filter(RecruiterProfile.verification_status == "PENDING_REVIEW").count()
     verified_recruiters = db.query(RecruiterProfile).filter(RecruiterProfile.verification_status == "VERIFIED").count()
+    
+    # Calculate evaluation metrics
+    quality = precision_recall_at_k(db, k=5)
+    engagement = engagement_metrics(db)
+    comparison = compare_baseline_vs_improved(db, k=5)
+    
     return api_ok({
         "total_users": total_users,
         "candidates": candidates,
@@ -968,7 +974,14 @@ def admin_stats(
         "total_applications": total_apps,
         "pending_verifications": pending_verifications,
         "verified_recruiters": verified_recruiters,
+        "accuracy": {
+            "precision_at_5": quality.get("precision_at_k", 0.0),
+            "recall_at_5": quality.get("recall_at_k", 0.0),
+        },
+        "engagement": engagement,
+        "model_comparison": comparison,
     })
+
 
 
 @app.post("/jobs")
@@ -990,6 +1003,7 @@ def create_job(payload: JobCreate, db: Session = Depends(get_db), current_user: 
         experience_level=payload.experience_level,
         start_date=payload.start_date,
         end_date=payload.end_date,
+        external_link=payload.external_link,
     )
     db.add(job)
     db.commit()
@@ -1127,6 +1141,7 @@ def get_job(job_id: int, db: Session = Depends(get_db), current_user: User = Dep
         "experience_level": job.experience_level,
         "start_date": job.start_date.isoformat() if job.start_date else None,
         "end_date": job.end_date.isoformat() if job.end_date else None,
+        "external_link": job.external_link,
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "recruiter_name": recruiter.name if recruiter else "Unknown",
         "company": company,
@@ -1156,6 +1171,7 @@ def update_job(
     job.experience_level = payload.experience_level
     job.start_date = payload.start_date
     job.end_date = payload.end_date
+    job.external_link = payload.external_link
     db.query(Recommendation).filter(Recommendation.job_id == job.id).delete()
     db.commit()
     db.refresh(job)
@@ -1450,11 +1466,11 @@ def create_interaction(
     db.refresh(interaction)
     if payload.event_type in {"click", "apply", "login"} and user.role == "candidate":
         reset_no_response_streak(db, user.id)
-    if payload.event_type == "login" and user.role == "candidate":
-        profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
-        if profile:
-            profile.last_login_at = interaction.created_at
-            db.commit()
+        if payload.event_type == "login":
+            profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
+            if profile:
+                profile.last_login_at = interaction.created_at
+                db.commit()
         update_user_behavior_state(db, user.id)
     return api_ok({"interaction_id": interaction.id})
 
@@ -1702,6 +1718,7 @@ def candidate_feed(
                 "company": _get_company_name(db, jobs[row.job_id].recruiter_id) if row.job_id in jobs else "",
                 **(_get_company_contact(db, jobs[row.job_id].recruiter_id) if row.job_id in jobs else {"company_phone": "", "company_website": ""}),
                 "recruiter_verified": _get_recruiter_verified(db, jobs[row.job_id].recruiter_id) if row.job_id in jobs else False,
+                "external_link": jobs[row.job_id].external_link if row.job_id in jobs else "",
                 "start_date": jobs[row.job_id].start_date.isoformat() if row.job_id in jobs and jobs[row.job_id].start_date else None,
                 "end_date": jobs[row.job_id].end_date.isoformat() if row.job_id in jobs and jobs[row.job_id].end_date else None,
                 "created_at": jobs[row.job_id].created_at.isoformat() if row.job_id in jobs and jobs[row.job_id].created_at else None,

@@ -31,8 +31,8 @@ export default function Home() {
       <header className="border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-lg shadow-sm">
-              ⚡
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-800 shadow-inner">
+              <Zap className="h-4 w-4 text-emerald-400 fill-emerald-400/5" />
             </div>
             <span className="font-semibold text-lg tracking-tight text-zinc-100">JobMatch AI</span>
           </div>
@@ -175,8 +175,8 @@ export default function Home() {
       <footer className="border-t border-zinc-950/40 bg-zinc-950/80 py-12">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2.5">
-            <div className="h-6 w-6 rounded bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-sm">
-              ⚡
+            <div className="flex h-6 w-6 items-center justify-center rounded bg-zinc-900 border border-zinc-800 shadow-inner">
+              <Zap className="h-3 w-3 text-emerald-400 fill-emerald-400/5" />
             </div>
             <span className="text-sm font-semibold tracking-tight text-zinc-300">JobMatch AI</span>
           </div>

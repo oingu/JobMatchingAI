@@ -36,13 +36,18 @@ def _candidate_profile_block(profile: CandidateProfile | None) -> str:
     )
 
 
-def _job_summary_block(job: Job) -> str:
-    return (
-        f"Job: {job.title}\n"
-        f"Location: {job.location or 'N/A'}\n"
-        f"Salary range: {job.salary_min or 0} - {job.salary_max or 0}\n"
+def _job_summary_block(job: Job, job_link_override: str | None = None) -> str:
+    lines = [
+        f"Job: {job.title}",
+        f"Location: {job.location or 'N/A'}",
+        f"Salary range: {job.salary_min or 0} - {job.salary_max or 0}",
         f"Required level: {job.experience_level or 'N/A'}"
-    )
+    ]
+    if job_link_override:
+        lines.append(f"Job Link: {job_link_override}")
+    elif job.external_link:
+        lines.append(f"Job Link: {job.external_link}")
+    return "\n".join(lines)
 
 
 def _company_contact_block(
@@ -144,13 +149,26 @@ def _process_job_created(db: Session, event: Event) -> None:
                 tracked_website = f"[{website}]({tracked_url})"
             else:
                 tracked_website = None
+
+            external_link = job.external_link
+            if external_link:
+                target_link = external_link if external_link.startswith(("http://", "https://")) else f"https://{external_link}"
+                tracked_external_url = build_email_click_tracking_url(
+                    candidate_id=candidate.id,
+                    job_id=job.id,
+                    target_url=target_link,
+                )
+                tracked_job_link = f"[Apply Job Link]({tracked_external_url})"
+            else:
+                tracked_job_link = None
+
             send_notification(
                 db,
                 user_id=candidate.id,
                 title=f"New matching job: {job.title}",
                 body=(
                     f"Score: {score.final_score:.3f}. A job may match your profile.\n\n"
-                    f"Job: {job.title}\n"
+                    f"{_job_summary_block(job, job_link_override=tracked_job_link)}\n"
                     f"{_company_contact_block(db, job.recruiter_id, recruiter_name, website_override=tracked_website)}"
                 ),
                 idempotency_key=f"job_created:{event.id}:candidate:{candidate.id}:job:{job.id}",
@@ -232,13 +250,26 @@ def _process_candidate_profile_updated(db: Session, event: Event) -> None:
             tracked_website = f"[{website}]({tracked_url})"
         else:
             tracked_website = None
+
+        external_link = candidate_best_job.external_link
+        if external_link:
+            target_link = external_link if external_link.startswith(("http://", "https://")) else f"https://{external_link}"
+            tracked_external_url = build_email_click_tracking_url(
+                candidate_id=candidate.id,
+                job_id=candidate_best_job.id,
+                target_url=target_link,
+            )
+            tracked_job_link = f"[Apply Job Link]({tracked_external_url})"
+        else:
+            tracked_job_link = None
+
         send_notification(
             db,
             user_id=candidate.id,
             title=f"New matching job: {candidate_best_job.title}",
             body=(
                 f"Best score: {candidate_best_score:.3f}\n\n"
-                f"{_job_summary_block(candidate_best_job)}\n"
+                f"{_job_summary_block(candidate_best_job, job_link_override=tracked_job_link)}\n"
                 f"{_company_contact_block(db, candidate_best_job.recruiter_id, best_recruiter_name, website_override=tracked_website)}"
             ),
             idempotency_key=f"candidate_profile_updated:{event.id}:candidate:{candidate.id}:job:{candidate_best_job.id}",
