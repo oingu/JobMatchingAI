@@ -119,9 +119,47 @@ class ApplicationCreate(BaseModel):
 
 
 class ApplicationReview(BaseModel):
-    status: Literal["ACCEPTED", "REJECTED"]
+    status: Literal["ACCEPTED", "REJECTED", "INTERVIEWING"]
+
+
+class InterviewCreate(BaseModel):
+    application_id: int
+    scheduled_time: datetime
+    location_type: Literal["ONLINE", "OFFLINE"]
+    location_details: str
+    notes: str = ""
+
+
+class InterviewOut(BaseModel):
+    id: int
+    application_id: int
+    recruiter_id: int
+    candidate_id: int
+    scheduled_time: datetime
+    location_type: str
+    location_details: str
+    status: str
+    notes: str
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class MessageCreate(BaseModel):
+    content: Annotated[str, Field(min_length=1, max_length=2000)]
+
+
+class MessageOut(BaseModel):
+    id: int
+    application_id: int
+    sender_id: int
+    content: str
+    is_read: bool
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)

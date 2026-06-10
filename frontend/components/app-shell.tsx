@@ -18,6 +18,7 @@ import {
   LogOut,
   Trash2,
   Zap,
+  CalendarDays,
 } from "lucide-react";
 
 import { Separator } from "@/components/ui/separator";
@@ -68,6 +69,7 @@ const adminNav: NavItem[] = [
 const candidateNav: NavItem[] = [
   { href: "/candidate/feed", label: "Job Feed", icon: <Rss className="h-4 w-4" /> },
   { href: "/candidate/applications", label: "My Applications", icon: <FileText className="h-4 w-4" /> },
+  { href: "/candidate/interviews", label: "Interviews", icon: <CalendarDays className="h-4 w-4" /> },
   { href: "/candidate/saved", label: "Saved Jobs", icon: <Bookmark className="h-4 w-4" /> },
   { href: "/candidate/profile", label: "My Profile", icon: <User className="h-4 w-4" /> },
   { href: "/candidate/activity", label: "Activity", icon: <Activity className="h-4 w-4" /> },
@@ -134,6 +136,32 @@ export function AppShell({ role, title, children }: AppShellProps) {
       active = false;
     };
   }, [session, role, pathname]);
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!session || role === "admin") return;
+    let active = true;
+
+    async function fetchUnreadCount() {
+      try {
+        const res = await apiRequest<{ unread_count: number }>("/messages/unread-count", { session });
+        if (active) setUnreadCount(res.data.unread_count || 0);
+      } catch {
+        // silent
+      }
+    }
+
+    void fetchUnreadCount();
+    const timer = setInterval(() => {
+      void fetchUnreadCount();
+    }, 5000);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [session, role]);
 
   useEffect(() => {
     if (!session || role === "admin") return;
@@ -223,6 +251,11 @@ export function AppShell({ role, title, children }: AppShellProps) {
                     {item.icon}
                   </span>
                   <span>{item.label}</span>
+                  {item.label === "Applications" && unreadCount > 0 && (
+                    <span className="ml-1 inline-flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                      {unreadCount}
+                    </span>
+                  )}
                   {active && (
                     <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-400" />
                   )}

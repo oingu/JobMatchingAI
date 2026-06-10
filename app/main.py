@@ -9,19 +9,21 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import Base, SessionLocal, engine, get_db
 from app.models import (
     Application,
+    ApplicationMessage,
     AuditLog,
     AuthToken,
     CandidateProfile,
     EmailVerification,
     Event,
     InteractionLog,
+    Interview,
     Job,
     Notification,
     RecruiterProfile,
@@ -34,9 +36,13 @@ from app.schemas import (
     CandidateProfileCreate,
     EventOut,
     InteractionCreate,
+    InterviewCreate,
+    InterviewOut,
     JobCreate,
     JobUpdate,
     LoginRequest,
+    MessageCreate,
+    MessageOut,
     RecruiterProfileCreate,
     UserCreate,
     UserOnlineUpdate,
@@ -50,7 +56,8 @@ from app.services.behavior import reset_no_response_streak, update_all_candidate
 from app.services.evaluation import compare_baseline_vs_improved, engagement_metrics, precision_recall_at_k
 from app.services.events import enqueue_event, process_next_event, retry_failed_event
 from app.services.email_tracking import verify_email_click_token
-from app.services.email import build_otp_email, is_email_configured, send_email
+from app.services.email import build_otp_email, is_email_configured
+from app.utils.email import send_email
 from app.services.rate_limiter import check_rate_limit
 from app.services.security import hash_password
 from app.utils.time import as_utc, now_utc
@@ -1269,6 +1276,18 @@ def list_my_applications(
         .order_by(Application.created_at.desc())
         .all()
     )
+    app_ids = [a.id for a in apps]
+    unread_counts = dict(
+        db.query(ApplicationMessage.application_id, func.count(ApplicationMessage.id))
+        .filter(
+            ApplicationMessage.application_id.in_(app_ids),
+            ApplicationMessage.sender_id != current_user.id,
+            ApplicationMessage.is_read == False
+        )
+        .group_by(ApplicationMessage.application_id)
+        .all()
+    ) if app_ids else {}
+
     result = []
     for a in apps:
         job = db.query(Job).filter(Job.id == a.job_id).first()
@@ -1289,6 +1308,7 @@ def list_my_applications(
             "cover_letter": a.cover_letter,
             "status": a.status,
             "score": rec.final_score if rec else None,
+            "unread_messages_count": unread_counts.get(a.id, 0),
             "created_at": a.created_at.isoformat() if a.created_at else None,
             "updated_at": a.updated_at.isoformat() if a.updated_at else None,
         })
@@ -1334,6 +1354,18 @@ def list_all_applications_for_recruiter(
         .order_by(Application.created_at.desc())
         .all()
     )
+    app_ids = [a.id for a in apps]
+    unread_counts = dict(
+        db.query(ApplicationMessage.application_id, func.count(ApplicationMessage.id))
+        .filter(
+            ApplicationMessage.application_id.in_(app_ids),
+            ApplicationMessage.sender_id != current_user.id,
+            ApplicationMessage.is_read == False
+        )
+        .group_by(ApplicationMessage.application_id)
+        .all()
+    ) if app_ids else {}
+
     result = []
     for a in apps:
         job = job_map.get(a.job_id)
@@ -1359,6 +1391,7 @@ def list_all_applications_for_recruiter(
             "cover_letter": a.cover_letter,
             "status": a.status,
             "score": rec.final_score if rec else None,
+            "unread_messages_count": unread_counts.get(a.id, 0),
             "created_at": a.created_at.isoformat() if a.created_at else None,
         })
     return api_ok(result)
@@ -1380,6 +1413,18 @@ def list_applicants_for_job(
         .order_by(Application.created_at.desc())
         .all()
     )
+    app_ids = [a.id for a in apps]
+    unread_counts = dict(
+        db.query(ApplicationMessage.application_id, func.count(ApplicationMessage.id))
+        .filter(
+            ApplicationMessage.application_id.in_(app_ids),
+            ApplicationMessage.sender_id != current_user.id,
+            ApplicationMessage.is_read == False
+        )
+        .group_by(ApplicationMessage.application_id)
+        .all()
+    ) if app_ids else {}
+
     result = []
     for a in apps:
         candidate = db.query(User).filter(User.id == a.candidate_id).first()
@@ -1402,6 +1447,7 @@ def list_applicants_for_job(
             "cover_letter": a.cover_letter,
             "status": a.status,
             "score": rec.final_score if rec else None,
+            "unread_messages_count": unread_counts.get(a.id, 0),
             "created_at": a.created_at.isoformat() if a.created_at else None,
         })
     return api_ok(result)
@@ -1441,6 +1487,191 @@ def review_application(
     )
     audit(db, action="application_reviewed", resource_type="application", resource_id=str(application_id), actor_user_id=current_user.id, detail={"new_status": payload.status})
     return api_ok({"application_id": app_obj.id, "status": app_obj.status})
+
+
+@app.post("/interviews", response_model=dict)
+def create_interview(
+    payload: InterviewCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_role(current_user, "recruiter")
+    app_obj = db.query(Application).filter(Application.id == payload.application_id).first()
+    if not app_obj:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    job = db.query(Job).filter(Job.id == app_obj.job_id, Job.recruiter_id == current_user.id).first()
+    if not job:
+        raise HTTPException(status_code=403, detail="Not your job posting.")
+        
+    interview = Interview(
+        application_id=payload.application_id,
+        recruiter_id=current_user.id,
+        candidate_id=app_obj.candidate_id,
+        scheduled_time=payload.scheduled_time,
+        location_type=payload.location_type,
+        location_details=payload.location_details,
+        notes=payload.notes,
+        status="SCHEDULED"
+    )
+    db.add(interview)
+    
+    app_obj.status = "INTERVIEWING"
+    db.commit()
+    db.refresh(interview)
+    
+    candidate = db.query(User).filter(User.id == app_obj.candidate_id).first()
+    if candidate:
+        send_email(
+            to_email=candidate.email,
+            subject=f"Lịch phỏng vấn mới: {job.title}",
+            body=f"Chào {candidate.name},\n\nBạn có lịch phỏng vấn mới cho vị trí {job.title}.\nThời gian: {payload.scheduled_time.strftime('%Y-%m-%d %H:%M')}\nHình thức: {payload.location_type}\nChi tiết: {payload.location_details}\n\nVui lòng kiểm tra trên hệ thống để biết thêm chi tiết."
+        )
+        
+    return api_ok({"interview_id": interview.id})
+
+
+@app.get("/interviews/recruiter", response_model=dict)
+def get_recruiter_interviews(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_role(current_user, "recruiter")
+    interviews = db.query(Interview).filter(Interview.recruiter_id == current_user.id).order_by(Interview.scheduled_time.asc()).all()
+    out = [InterviewOut.model_validate(i).model_dump() for i in interviews]
+    return api_ok(out)
+
+
+@app.get("/interviews/candidate", response_model=dict)
+def get_candidate_interviews(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_role(current_user, "candidate")
+    interviews = db.query(Interview).filter(Interview.candidate_id == current_user.id).order_by(Interview.scheduled_time.asc()).all()
+    
+    out = []
+    for i in interviews:
+        data = InterviewOut.model_validate(i).model_dump()
+        app_obj = db.query(Application).filter(Application.id == i.application_id).first()
+        if app_obj:
+            job = db.query(Job).filter(Job.id == app_obj.job_id).first()
+            if job:
+                data["job_title"] = job.title
+                company = db.query(RecruiterProfile).filter(RecruiterProfile.user_id == job.recruiter_id).first()
+                if company:
+                    data["company_name"] = company.company_name
+        out.append(data)
+        
+    return api_ok(out)
+
+
+@app.get("/applications/{application_id}/messages", response_model=dict)
+def get_messages(
+    application_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    app_obj = db.query(Application).filter(Application.id == application_id).first()
+    if not app_obj:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    
+    # Permission check
+    if current_user.role == "candidate":
+        if app_obj.candidate_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not your application.")
+    elif current_user.role == "recruiter":
+        job = db.query(Job).filter(Job.id == app_obj.job_id, Job.recruiter_id == current_user.id).first()
+        if not job:
+            raise HTTPException(status_code=403, detail="Not your job posting.")
+            
+    messages = db.query(ApplicationMessage).filter(ApplicationMessage.application_id == application_id).order_by(ApplicationMessage.created_at.asc()).all()
+    out = [MessageOut.model_validate(m).model_dump() for m in messages]
+    return api_ok(out)
+
+
+@app.get("/messages/unread-count", response_model=dict)
+def get_unread_count(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    if current_user.role == "candidate":
+        app_ids = [a.id for a in db.query(Application.id).filter(Application.candidate_id == current_user.id).all()]
+    elif current_user.role == "recruiter":
+        job_ids = [j.id for j in db.query(Job.id).filter(Job.recruiter_id == current_user.id).all()]
+        app_ids = [a.id for a in db.query(Application.id).filter(Application.job_id.in_(job_ids)).all()]
+    else:
+        app_ids = []
+    
+    if not app_ids:
+        return api_ok({"unread_count": 0})
+        
+    count = db.query(ApplicationMessage).filter(
+        ApplicationMessage.application_id.in_(app_ids),
+        ApplicationMessage.sender_id != current_user.id,
+        ApplicationMessage.is_read == False
+    ).count()
+    return api_ok({"unread_count": count})
+
+
+@app.post("/applications/{application_id}/messages/read", response_model=dict)
+def mark_messages_read(
+    application_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    app_obj = db.query(Application).filter(Application.id == application_id).first()
+    if not app_obj:
+        raise HTTPException(status_code=404, detail="Application not found.")
+        
+    if current_user.role == "candidate" and app_obj.candidate_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your application.")
+    elif current_user.role == "recruiter":
+        job = db.query(Job).filter(Job.id == app_obj.job_id, Job.recruiter_id == current_user.id).first()
+        if not job:
+            raise HTTPException(status_code=403, detail="Not your job posting.")
+            
+    db.query(ApplicationMessage).filter(
+        ApplicationMessage.application_id == application_id,
+        ApplicationMessage.sender_id != current_user.id,
+        ApplicationMessage.is_read == False
+    ).update({"is_read": True}, synchronize_session=False)
+    db.commit()
+    
+    return api_ok({"marked_read": True})
+
+@app.post("/applications/{application_id}/messages", response_model=dict)
+def create_message(
+    application_id: int,
+    payload: MessageCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    app_obj = db.query(Application).filter(Application.id == application_id).first()
+    if not app_obj:
+        raise HTTPException(status_code=404, detail="Application not found.")
+        
+    if app_obj.status not in ["ACCEPTED", "INTERVIEWING"]:
+        raise HTTPException(status_code=400, detail="Messaging only allowed for accepted/interviewing applications.")
+    
+    # Permission check
+    if current_user.role == "candidate":
+        if app_obj.candidate_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not your application.")
+    elif current_user.role == "recruiter":
+        job = db.query(Job).filter(Job.id == app_obj.job_id, Job.recruiter_id == current_user.id).first()
+        if not job:
+            raise HTTPException(status_code=403, detail="Not your job posting.")
+            
+    msg = ApplicationMessage(
+        application_id=application_id,
+        sender_id=current_user.id,
+        content=payload.content
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    
+    return api_ok(MessageOut.model_validate(msg).model_dump())
 
 
 @app.post("/interactions")

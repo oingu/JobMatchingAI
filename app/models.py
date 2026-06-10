@@ -190,3 +190,37 @@ class AuditLog(Base):
     resource_id = Column(String(80), nullable=True)
     detail = Column(JSON, default={}, nullable=False)
     created_at = Column(DateTime(timezone=True), default=now_utc, nullable=False)
+
+
+class Interview(Base):
+    __tablename__ = "interviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(Integer, ForeignKey("applications.id"), nullable=False, index=True)
+    recruiter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    candidate_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    scheduled_time = Column(DateTime(timezone=True), nullable=False)
+    location_type = Column(String(50), nullable=False)  # ONLINE | OFFLINE
+    location_details = Column(String(500), nullable=False)
+    status = Column(String(50), default="SCHEDULED", nullable=False)  # SCHEDULED | COMPLETED | CANCELED
+    notes = Column(Text, default="", nullable=False)
+    created_at = Column(DateTime(timezone=True), default=now_utc, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=now_utc, nullable=False)
+
+    application = relationship("Application")
+    recruiter = relationship("User", foreign_keys=[recruiter_id])
+    candidate = relationship("User", foreign_keys=[candidate_id])
+
+
+class ApplicationMessage(Base):
+    __tablename__ = "application_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(Integer, ForeignKey("applications.id"), nullable=False, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=now_utc, nullable=False)
+
+    application = relationship("Application")
+    sender = relationship("User")

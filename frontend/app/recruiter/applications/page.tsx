@@ -12,13 +12,20 @@ import {
   Mail,
   Phone,
   Calendar,
+  CalendarDays,
+  MessageCircle,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { RoleGuard } from "@/components/role-guard";
+import { ChatBox } from "@/components/chat-box";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
@@ -37,6 +44,7 @@ type AppItem = {
   cover_letter: string;
   status: string;
   score: number | null;
+  unread_messages_count: number;
   created_at: string | null;
 };
 
@@ -46,11 +54,12 @@ const STATUS_CFG: Record<
 > = {
   PENDING: { label: "Pending", icon: <Clock className="h-3.5 w-3.5" />, variant: "secondary" },
   ACCEPTED: { label: "Accepted", icon: <CheckCircle2 className="h-3.5 w-3.5" />, variant: "default" },
+  INTERVIEWING: { label: "Interviewing", icon: <CalendarDays className="h-3.5 w-3.5" />, variant: "default" },
   REJECTED: { label: "Rejected", icon: <XCircle className="h-3.5 w-3.5" />, variant: "destructive" },
   WITHDRAWN: { label: "Withdrawn", icon: <AlertCircle className="h-3.5 w-3.5" />, variant: "outline" },
 };
 
-type FilterStatus = "ALL" | "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN";
+type FilterStatus = "ALL" | "PENDING" | "ACCEPTED" | "INTERVIEWING" | "REJECTED" | "WITHDRAWN";
 
 export default function RecruiterApplicationsPage() {
   return (
@@ -65,6 +74,15 @@ function Content({ session }: { session: SessionData }) {
   const [apps, setApps] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterStatus>("ALL");
+  const [schedulingApp, setSchedulingApp] = useState<number | null>(null);
+  const [chatApp, setChatApp] = useState<number | null>(null);
+  const [interviewData, setInterviewData] = useState({
+    date: "",
+    time: "",
+    location_type: "ONLINE",
+    location_details: "",
+    notes: ""
+  });
 
   async function load() {
     try {
@@ -95,16 +113,43 @@ function Content({ session }: { session: SessionData }) {
       toastError(err instanceof Error ? err.message : "Review failed.");
     }
   }
-
+  async function scheduleInterview() {
+    if (!schedulingApp || !interviewData.date || !interviewData.time || !interviewData.location_details) {
+      toastError("Please fill in all required fields.");
+      return;
+    }
+    
+    try {
+      const scheduled_time = new Date(`${interviewData.date}T${interviewData.time}`).toISOString();
+      await apiRequest("/interviews", {
+        method: "POST",
+        session,
+        body: {
+          application_id: schedulingApp,
+          scheduled_time,
+          location_type: interviewData.location_type,
+          location_details: interviewData.location_details,
+          notes: interviewData.notes
+        },
+      });
+      toastSuccess("Interview scheduled and candidate notified!");
+      setApps((prev) => prev.map((a) => (a.id === schedulingApp ? { ...a, status: "INTERVIEWING" } : a)));
+      setSchedulingApp(null);
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Failed to schedule interview.");
+    }
+  }
   const filtered = filter === "ALL" ? apps : apps.filter((a) => a.status === filter);
   const pending = apps.filter((a) => a.status === "PENDING").length;
   const accepted = apps.filter((a) => a.status === "ACCEPTED").length;
+  const interviewing = apps.filter((a) => a.status === "INTERVIEWING").length;
   const rejected = apps.filter((a) => a.status === "REJECTED").length;
 
   const filters: { key: FilterStatus; label: string; count?: number }[] = [
     { key: "ALL", label: "All", count: apps.length },
     { key: "PENDING", label: "Pending", count: pending },
     { key: "ACCEPTED", label: "Accepted", count: accepted },
+    { key: "INTERVIEWING", label: "Interviewing", count: interviewing },
     { key: "REJECTED", label: "Rejected", count: rejected },
     { key: "WITHDRAWN", label: "Withdrawn" },
   ];
@@ -237,6 +282,32 @@ function Content({ session }: { session: SessionData }) {
                           </Button>
                         </div>
                       )}
+                      {(app.status === "ACCEPTED" || app.status === "INTERVIEWING") && (
+                        <div className="flex gap-2">
+                          {app.status === "ACCEPTED" && (
+                            <Button
+                              size="sm"
+                              className="gap-1 text-xs"
+                              onClick={() => setSchedulingApp(app.id)}
+                            >
+                              <CalendarDays className="h-3.5 w-3.5" /> Schedule Interview
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="gap-1 text-xs bg-primary/10 text-primary hover:bg-primary/20 relative"
+                            onClick={() => setChatApp(app.id)}
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" /> Message
+                            {app.unread_messages_count > 0 && (
+                              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm">
+                                {app.unread_messages_count}
+                              </span>
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <Button asChild variant="outline" size="sm" className="text-xs">
                       <Link href={`/candidate/public/${app.candidate_id}`}>View Candidate Profile</Link>
@@ -248,6 +319,76 @@ function Content({ session }: { session: SessionData }) {
           })}
         </div>
       )}
+
+      {/* Schedule Interview Modal */}
+      <Dialog open={schedulingApp !== null} onOpenChange={(o) => !o && setSchedulingApp(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schedule Interview</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input type="date" value={interviewData.date} onChange={(e) => setInterviewData({...interviewData, date: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Time</Label>
+                <Input type="time" value={interviewData.time} onChange={(e) => setInterviewData({...interviewData, time: e.target.value})} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Location Type</Label>
+              <select 
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={interviewData.location_type} 
+                onChange={(e) => setInterviewData({...interviewData, location_type: e.target.value})}
+              >
+                <option value="ONLINE">Online (Video Call)</option>
+                <option value="OFFLINE">Offline (In-person)</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Details (Meet Link or Address)</Label>
+              <Input 
+                placeholder={interviewData.location_type === "ONLINE" ? "e.g. https://meet.google.com/..." : "123 Main St..."} 
+                value={interviewData.location_details} 
+                onChange={(e) => setInterviewData({...interviewData, location_details: e.target.value})} 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes for Candidate (Optional)</Label>
+              <Textarea 
+                placeholder="Any instructions before the interview?"
+                value={interviewData.notes}
+                onChange={(e) => setInterviewData({...interviewData, notes: e.target.value})}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSchedulingApp(null)}>Cancel</Button>
+            <Button onClick={scheduleInterview}>Schedule & Notify</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Floating Chat Box */}
+      {(() => {
+        const chatApplication = apps.find(a => a.id === chatApp);
+        if (!chatApplication) return null;
+        return (
+          <div className="fixed bottom-0 right-4 sm:right-20 z-[100] animate-in slide-in-from-bottom-5">
+            <ChatBox 
+              applicationId={chatApplication.id} 
+              currentUserId={session.userId} 
+              session={session} 
+              recipientName={chatApplication.candidate_name}
+              onClose={() => setChatApp(null)}
+              className="w-[330px] h-[450px] sm:w-[350px] sm:h-[460px] border-b-0 rounded-b-none"
+            />
+          </div>
+        );
+      })()}
     </AppShell>
   );
 }

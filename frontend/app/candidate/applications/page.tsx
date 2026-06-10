@@ -22,6 +22,8 @@ import {
 
 import { AppShell } from "@/components/app-shell";
 import { RoleGuard } from "@/components/role-guard";
+import { ChatBox } from "@/components/chat-box";
+import { MessageCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +52,7 @@ type ApplicationItem = {
   cover_letter: string;
   status: string;
   score: number | null;
+  unread_messages_count: number;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -118,6 +121,7 @@ function ApplicationsContent({ session }: { session: SessionData }) {
   const [detailJob, setDetailJob] = useState<JobDetail | null>(null);
   const [detailApp, setDetailApp] = useState<ApplicationItem | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [chatAppId, setChatAppId] = useState<number | null>(null);
 
   async function load() {
     try {
@@ -273,6 +277,21 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                           <Undo2 className="h-3 w-3" /> Withdraw
                         </Button>
                       )}
+                      {["ACCEPTED", "INTERVIEWING"].includes(app.status) && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="gap-1 text-xs bg-primary/10 text-primary hover:bg-primary/20 relative"
+                          onClick={() => setChatAppId(app.id)}
+                        >
+                          <MessageCircle className="h-3 w-3" /> Chat
+                          {app.unread_messages_count > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm">
+                              {app.unread_messages_count}
+                            </span>
+                          )}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -387,6 +406,21 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                     </Link>
                   </Button>
                 )}
+                
+                {detailApp && (detailApp.status === "ACCEPTED" || detailApp.status === "INTERVIEWING") && (
+                  <>
+                    <Separator />
+                    <Button 
+                      onClick={() => {
+                        setChatAppId(detailApp.id);
+                        setDetailOpen(false);
+                      }} 
+                      className="w-full gap-2"
+                    >
+                      <MessageCircle className="h-4 w-4" /> Message Recruiter
+                    </Button>
+                  </>
+                )}
               </div>
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">
@@ -396,6 +430,25 @@ function ApplicationsContent({ session }: { session: SessionData }) {
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      {/* Floating Chat Box */}
+      {(() => {
+        const chatAppDetails = apps.find(a => a.id === chatAppId);
+        if (!chatAppDetails) return null;
+        return (
+          <div className="fixed bottom-0 right-4 sm:right-20 z-[100] animate-in slide-in-from-bottom-5">
+            <ChatBox 
+              applicationId={chatAppDetails.id} 
+              currentUserId={session.userId} 
+              session={session} 
+              recipientName={chatAppDetails.company || "Recruiter"}
+              recipientAvatar={chatAppDetails.company_avatar_url}
+              onClose={() => setChatAppId(null)}
+              className="w-[330px] h-[450px] sm:w-[350px] sm:h-[460px] border-b-0 rounded-b-none"
+            />
+          </div>
+        );
+      })()}
     </AppShell>
   );
 }
