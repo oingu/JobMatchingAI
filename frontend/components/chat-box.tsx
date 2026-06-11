@@ -98,7 +98,8 @@ export function ChatBox({ applicationId, currentUserId, session, recipientName, 
       application_id: applicationId,
       sender_id: currentUserId,
       content,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      is_read: false,
     };
     setMessages(prev => [...prev, tempMsg]);
 
