@@ -138,6 +138,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
   }, [session, role, pathname]);
 
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   useEffect(() => {
     if (!session || role === "admin") return;
@@ -198,6 +199,17 @@ export function AppShell({ role, title, children }: AppShellProps) {
           });
         }
         lastSeenNotificationId.current = Math.max(lastSeenNotificationId.current, maxId);
+
+        // Fetch unread notification count from backend
+        try {
+          const countRes = await apiRequest<{ unread_count: number }>(
+            `/notifications/${currentSession.userId}/unread-count`,
+            { session: currentSession }
+          );
+          if (!cancelled) setUnreadNotifCount(countRes.data.unread_count || 0);
+        } catch {
+          // silent
+        }
       } catch {
         // silent
       }
@@ -251,9 +263,14 @@ export function AppShell({ role, title, children }: AppShellProps) {
                     {item.icon}
                   </span>
                   <span>{item.label}</span>
-                  {item.label === "Applications" && unreadCount > 0 && (
-                    <span className="ml-1 inline-flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                  {(item.label === "My Applications" || item.label === "Applications") && unreadCount > 0 && (
+                    <span className="ml-auto flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm">
                       {unreadCount}
+                    </span>
+                  )}
+                  {item.label === "Notifications" && unreadNotifCount > 0 && (
+                    <span className="ml-auto flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm">
+                      {unreadNotifCount}
                     </span>
                   )}
                   {active && (

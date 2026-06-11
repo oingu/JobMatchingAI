@@ -78,7 +78,7 @@ export function ChatBox({ applicationId, currentUserId, session, recipientName, 
   // Scroll to bottom when messages change
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
     if (!isMinimized) {
       void markAsRead();
@@ -167,7 +167,7 @@ export function ChatBox({ applicationId, currentUserId, session, recipientName, 
       {!isMinimized && (
         <>
           {/* Messages */}
-          <ScrollArea className="flex-1 min-h-0 bg-slate-50/50 dark:bg-slate-950/50" ref={scrollRef}>
+          <ScrollArea className="flex-1 min-h-0 bg-slate-50/50 dark:bg-slate-950/50">
             <div className="p-3">
               {loading && messages.length === 0 ? (
                 <p className="text-center text-xs text-muted-foreground mt-4">Đang tải tin nhắn...</p>
@@ -225,8 +225,9 @@ export function ChatBox({ applicationId, currentUserId, session, recipientName, 
             })}
           </div>
         )}
-            </div>
-      </ScrollArea>
+        <div ref={scrollRef} />
+      </div>
+    </ScrollArea>
 
       {/* Footer */}
       <div className="p-2 bg-background border-t">

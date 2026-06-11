@@ -33,6 +33,12 @@ function NotificationsContent({ session }: { session: SessionData }) {
           { session },
         );
         setItems(res.data.notifications);
+
+        // Mark as read in the background
+        apiRequest(`/notifications/${session.userId}/read-all`, {
+          method: "POST",
+          session,
+        }).catch(() => {});
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load notifications.");
       } finally {
@@ -43,7 +49,7 @@ function NotificationsContent({ session }: { session: SessionData }) {
 
   return (
     <AppShell role="candidate" title="Notifications">
-      <div className="max-w-2xl space-y-3">
+      <div className="w-full space-y-3 pr-4">
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {loading ? (

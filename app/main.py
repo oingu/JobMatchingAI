@@ -2026,6 +2026,39 @@ def list_notifications(
     }, meta={"offset": max(offset, 0), "limit": min(max(limit, 1), 200), "count": len(notifications)})
 
 
+@app.get("/notifications/{user_id}/unread-count")
+def get_unread_notifications_count(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+    count = db.query(Notification).filter(
+        Notification.user_id == user_id,
+        Notification.status == "SENT"
+    ).count()
+    return api_ok({"unread_count": count})
+
+
+@app.post("/notifications/{user_id}/read-all")
+def mark_all_notifications_read(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden.")
+    
+    db.query(Notification).filter(
+        Notification.user_id == user_id,
+        Notification.status == "SENT"
+    ).update({"status": "READ"}, synchronize_session=False)
+    db.commit()
+    
+    return api_ok({"status": "Success"})
+
+
 @app.get("/email/track-company-click")
 def track_company_click(token: str, db: Session = Depends(get_db)) -> RedirectResponse:
     payload = verify_email_click_token(token)

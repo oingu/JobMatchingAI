@@ -138,8 +138,12 @@ function ApplicationsContent({ session }: { session: SessionData }) {
 
   useEffect(() => {
     void load();
+    const interval = setInterval(() => {
+      void load();
+    }, 5000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [session]);
 
   async function withdraw(appId: number) {
     try {
