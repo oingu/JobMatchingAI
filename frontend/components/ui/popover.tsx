@@ -22,7 +22,7 @@ function PopoverContent({
 }: PopoverPrimitive.Popup.Props & { sideOffset?: number, side?: any, align?: any }) {
   return (
     <PopoverPrimitive.Portal>
-      <PopoverPrimitive.Positioner sideOffset={sideOffset} side={side} alignment={align} className="z-[100]">
+      <PopoverPrimitive.Positioner sideOffset={sideOffset} side={side} align={align} className="z-[100]">
         <PopoverPrimitive.Popup
           data-slot="popover-content"
           className={cn(
