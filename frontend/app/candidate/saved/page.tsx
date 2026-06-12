@@ -195,7 +195,7 @@ function SavedJobsContent({ session }: { session: SessionData }) {
 
   return (
     <AppShell role="candidate" title="Saved Jobs">
-      <div className="max-w-3xl space-y-5">
+      <div className="w-full space-y-5">
         <div>
           <p className="text-sm font-medium">
             Your saved jobs ({jobs.length})

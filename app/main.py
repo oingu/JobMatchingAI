@@ -51,7 +51,7 @@ from app.services.auth import authenticate, get_current_user, issue_token, requi
 from app.services.audit import audit
 from app.services.cv_parser import parse_cv as regex_parse_cv
 from app.services.cv_parser_gemini import parse_cv_with_gemini, GeminiParseResult
-from app.services.cv_parser_openrouter import parse_cv_with_openrouter
+
 from app.services.behavior import reset_no_response_streak, update_all_candidates_behavior, update_user_behavior_state
 from app.services.evaluation import compare_baseline_vs_improved, engagement_metrics, precision_recall_at_k
 from app.services.events import enqueue_event, process_next_event, retry_failed_event
@@ -589,14 +589,7 @@ async def upload_cv(
         raise HTTPException(status_code=400, detail="File too large (max 10 MB).")
 
     parser_error = ""
-    if settings.cv_parser_mode == "openrouter" or (
-        settings.cv_parser_mode == "auto" and settings.openrouter_api_key
-    ):
-        result = parse_cv_with_openrouter(contents)
-        extraction = result.extraction
-        parser_used = result.parser_used
-        parser_error = result.openrouter_error
-    elif settings.cv_parser_mode == "gemini" or (
+    if settings.cv_parser_mode == "gemini" or (
         settings.cv_parser_mode == "auto" and settings.gemini_api_key
     ):
         result = parse_cv_with_gemini(contents)

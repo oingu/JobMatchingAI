@@ -19,6 +19,8 @@ import {
   Trash2,
   Zap,
   CalendarDays,
+  HelpCircle,
+  Megaphone,
 } from "lucide-react";
 
 import { Separator } from "@/components/ui/separator";
@@ -53,11 +55,12 @@ type NavItem = { href: string; label: string; icon: React.ReactNode };
 
 const recruiterNav: NavItem[] = [
   { href: "/recruiter/dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
-  { href: "/recruiter/jobs/new", label: "My Posts", icon: <Briefcase className="h-4 w-4" /> },
+  { href: "/recruiter/jobs/new", label: "My Posts", icon: <Megaphone className="h-4 w-4" /> },
   { href: "/recruiter/applications", label: "Applications", icon: <FileText className="h-4 w-4" /> },
   { href: "/recruiter/profile", label: "My Profile", icon: <User className="h-4 w-4" /> },
   { href: "/recruiter/verification", label: "Verification", icon: <ShieldCheck className="h-4 w-4" /> },
   { href: "/recruiter/notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
+  { href: "/recruiter/help", label: "Help & Support", icon: <HelpCircle className="h-4 w-4" /> },
 ];
 
 const adminNav: NavItem[] = [
@@ -74,6 +77,7 @@ const candidateNav: NavItem[] = [
   { href: "/candidate/profile", label: "My Profile", icon: <User className="h-4 w-4" /> },
   { href: "/candidate/activity", label: "Activity", icon: <Activity className="h-4 w-4" /> },
   { href: "/candidate/notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
+  { href: "/candidate/help", label: "Help & Support", icon: <HelpCircle className="h-4 w-4" /> },
 ];
 
 type AppShellProps = {
@@ -287,7 +291,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
       <main className="flex h-screen flex-1 flex-col overflow-hidden bg-zinc-950">
         <header className="sticky top-0 z-40 flex items-center justify-between border-b border-zinc-900/80 bg-zinc-950/80 px-6 py-4 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
-            <Briefcase className="h-4 w-4 text-zinc-500" />
+            {links.find((l) => l.href === pathname)?.icon || <Briefcase className="h-4 w-4 text-zinc-500" />}
             <h1 className="text-sm font-semibold tracking-tight text-zinc-200">{title}</h1>
           </div>
           <div className="flex items-center gap-3">
