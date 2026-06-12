@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Upload, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Upload, AlertTriangle, BrainCircuit, Sparkles } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { RoleGuard } from "@/components/role-guard";
@@ -315,9 +315,26 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
                     </Button>
                   </div>
                   {uploading && uploadProgress > 0 && (
-                    <div className="space-y-1">
-                      <Progress value={uploadProgress} className="h-2 w-full transition-all duration-300" />
-                      <p className="text-xs text-muted-foreground text-right">{uploadProgress}% - Analyzing CV content...</p>
+                    <div className="space-y-3 mt-4 p-4 border border-emerald-900/40 bg-emerald-950/10 rounded-xl relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/5 to-emerald-500/0 animate-[shimmer_2s_infinite] -skew-x-12" />
+                      <div className="flex items-center gap-3 relative z-10">
+                        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-950 border border-emerald-800 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                          <BrainCircuit className="h-5 w-5 text-emerald-400 animate-pulse" />
+                          <Sparkles className="h-3 w-3 text-emerald-300 absolute -top-1 -right-1 animate-ping" />
+                        </div>
+                        <div className="flex-1 space-y-1.5">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-medium text-emerald-400 font-mono flex items-center gap-1.5">
+                              {uploadProgress < 30 && "Extracting document data..."}
+                              {uploadProgress >= 30 && uploadProgress < 60 && "Running Gemini Vision NLP..."}
+                              {uploadProgress >= 60 && uploadProgress < 90 && "Vectorizing skills & experience..."}
+                              {uploadProgress >= 90 && "Finalizing matching profile..."}
+                            </span>
+                            <span className="font-bold text-emerald-500">{uploadProgress}%</span>
+                          </div>
+                          <Progress value={uploadProgress} className="h-1.5 w-full bg-zinc-900 [&>div]:bg-emerald-500" />
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

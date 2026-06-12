@@ -338,7 +338,8 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
             {items.map((item, idx) => (
               <div
                 key={`${item.job_id}-${idx}`}
-                className="group relative border border-zinc-900 bg-zinc-900/10 hover:bg-zinc-900/20 rounded-xl overflow-hidden transition-all duration-300 hover:border-zinc-800 hover:-translate-y-[1px] flex"
+                style={{ animationDelay: `${idx * 100}ms`, animationFillMode: "both" }}
+                className="animate-in fade-in zoom-in-95 slide-in-from-bottom-8 duration-500 group relative border border-zinc-900 bg-zinc-900/10 hover:bg-zinc-900/20 rounded-xl overflow-hidden transition-all hover:border-zinc-800 hover:-translate-y-[2px] flex hover:shadow-lg hover:shadow-emerald-900/10"
               >
                 {/* Rank badge */}
                 <div className="flex w-12 shrink-0 flex-col items-center justify-center border-r border-zinc-900/60 bg-zinc-950/40 select-none">

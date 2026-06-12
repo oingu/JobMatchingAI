@@ -1063,6 +1063,7 @@ def list_my_jobs(
             "experience_level": j.experience_level,
             "start_date": j.start_date.isoformat() if j.start_date else None,
             "end_date": j.end_date.isoformat() if j.end_date else None,
+            "external_link": j.external_link,
             "created_at": j.created_at.isoformat() if j.created_at else None,
             "match_count": rec_count,
             "status": status,
