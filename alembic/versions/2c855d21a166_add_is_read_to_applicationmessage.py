@@ -18,7 +18,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('application_messages', sa.Column('is_read', sa.Boolean(), server_default='false', nullable=False))
+    conn = op.get_bind()
+    from sqlalchemy.engine.reflection import Inspector
+    inspector = Inspector.from_engine(conn)
+    columns = [col['name'] for col in inspector.get_columns('application_messages')]
+    if 'is_read' not in columns:
+        op.add_column('application_messages', sa.Column('is_read', sa.Boolean(), server_default='false', nullable=False))
     # ### end Alembic commands ###
 
 
