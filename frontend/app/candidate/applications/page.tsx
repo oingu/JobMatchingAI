@@ -18,6 +18,8 @@ import {
   Globe,
   Calendar,
   Users,
+  Layers,
+  Monitor,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -68,6 +70,9 @@ type JobDetail = {
   salary_min: number;
   salary_max: number;
   experience_level: string;
+  domain: string;
+  work_mode: string;
+  employment_type: string;
   start_date: string | null;
   end_date: string | null;
   created_at: string | null;
@@ -361,6 +366,15 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                     <InfoRow icon={<MapPin className="h-4 w-4" />} label="Location" value={detailJob.location || "—"} />
                     <InfoRow icon={<Briefcase className="h-4 w-4" />} label="Experience" value={detailJob.experience_level} />
                     <InfoRow icon={<DollarSign className="h-4 w-4" />} label="Salary" value={`${detailJob.salary_min || 0} - ${detailJob.salary_max || 0}`} />
+                    {detailJob.domain && (
+                      <InfoRow icon={<Layers className="h-4 w-4" />} label="Domain" value={detailJob.domain} />
+                    )}
+                    {detailJob.work_mode && (
+                      <InfoRow icon={<Monitor className="h-4 w-4" />} label="Work Mode" value={detailJob.work_mode} />
+                    )}
+                    {detailJob.employment_type && (
+                      <InfoRow icon={<Clock className="h-4 w-4" />} label="Type" value={detailJob.employment_type} />
+                    )}
                     <InfoRow icon={<Users className="h-4 w-4" />} label="Candidates" value={`${detailJob.match_count} matched`} />
                     {detailJob.start_date && (
                       <InfoRow icon={<Calendar className="h-4 w-4" />} label="Start" value={new Date(detailJob.start_date).toLocaleDateString()} />

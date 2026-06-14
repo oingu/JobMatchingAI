@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  MapPin,
   DollarSign,
   Briefcase,
   Eye,
+  EyeOff,
   Bookmark,
   Send,
   CheckCircle2,
@@ -18,7 +18,15 @@ import {
   Globe,
   ShieldCheck,
   ShieldAlert,
+  ArrowUpRight,
   ExternalLink,
+  Sparkles,
+  Zap,
+  Star,
+  MapPin,
+  Layers,
+  Monitor,
+  Clock,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -68,6 +76,9 @@ type FeedItem = {
   salary_min: number;
   salary_max: number;
   experience_level: string;
+  domain: string;
+  work_mode: string;
+  employment_type: string;
   required_skills: SkillItem[];
   company: string;
   company_avatar_url: string;
@@ -90,6 +101,9 @@ type JobDetail = {
   salary_min: number;
   salary_max: number;
   experience_level: string;
+  domain: string;
+  work_mode: string;
+  employment_type: string;
   start_date: string | null;
   end_date: string | null;
   created_at: string | null;
@@ -110,7 +124,7 @@ const LEVEL_LABELS: Record<number, string> = {
   4: "Advanced",
   5: "Expert",
 };
-const BRIEF_PREVIEW_LIMIT = 180;
+const BRIEF_PREVIEW_LIMIT = 500;
 
 const TOP_K_OPTIONS = [5, 10, 15, 20];
 
@@ -124,6 +138,25 @@ function formatSalary(n: number): string {
 function toWebsiteUrl(value: string): string {
   if (!value) return "";
   return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+function timeAgo(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMs = now - then;
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 4) return `${weeks}w ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
 }
 
 export default function CandidateFeedPage() {
@@ -284,7 +317,22 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
   function handleTopKChange(k: number) {
     setTopK(k);
     void load(k);
-  }
+  };
+
+  const handleHideJob = async (jobId: number) => {
+    if (!session?.userId) return;
+    try {
+      await apiRequest(`/feed/candidate/${session.userId}/hide-job/${jobId}`, {
+        method: "POST",
+        session,
+      });
+      // Optimistically remove from feed
+      setItems((prev) => prev.filter((item) => item.job_id !== jobId));
+      toastSuccess("Job hidden from feed.");
+    } catch (err: any) {
+      toastError(err.message || "Failed to hide job");
+    }
+  };
 
   return (
     <AppShell role="candidate" title="Job Feed">
@@ -335,255 +383,231 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
           </Card>
         ) : (
           <div className="space-y-4">
-            {items.map((item, idx) => (
-              <div
-                key={`${item.job_id}-${idx}`}
-                style={{ animationDelay: `${idx * 100}ms`, animationFillMode: "both" }}
-                className="animate-in fade-in zoom-in-95 slide-in-from-bottom-8 duration-500 group relative border border-zinc-900 bg-zinc-900/10 hover:bg-zinc-900/20 rounded-xl overflow-hidden transition-all hover:border-zinc-800 hover:-translate-y-[2px] flex hover:shadow-lg hover:shadow-emerald-900/10"
-              >
-                {/* Rank badge */}
-                <div className="flex w-12 shrink-0 flex-col items-center justify-center border-r border-zinc-900/60 bg-zinc-950/40 select-none">
-                  <span className="text-sm font-mono font-bold text-zinc-500 group-hover:text-emerald-400 transition-colors">#{idx + 1}</span>
-                  <span className="text-[8px] font-mono uppercase tracking-wider text-zinc-650 mt-0.5">
-                    rank
-                  </span>
-                </div>
+            {items.map((item, idx) => {
+              const alreadyApplied = appliedJobs.has(item.job_id);
+              const alreadySaved = savedJobs.has(item.job_id);
 
-                <div className="flex-1 p-5">
-                  {/* Header */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-2.5 flex-1">
+              return (
+                <div
+                  key={`${item.job_id}-${idx}`}
+                  style={{ animationDelay: `${idx * 80}ms`, animationFillMode: "both" }}
+                  className="animate-in fade-in slide-in-from-bottom-4 duration-400 rounded-xl border border-border bg-card/10 hover:bg-accent/40 transition-all hover:border-border/80 hover:shadow-lg hover:shadow-foreground/5 flex overflow-hidden group"
+                >
+                  {/* ── Rank sidebar ── */}
+                  <div className="flex w-12 shrink-0 flex-col items-center justify-center border-r border-border/60 bg-muted/20 select-none">
+                    <span className="text-sm font-mono font-bold text-muted-foreground group-hover:text-emerald-500 transition-colors">#{idx + 1}</span>
+                    <span className="text-[8px] font-mono uppercase tracking-wider text-muted-foreground mt-0.5">
+                      rank
+                    </span>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    {/* ── Post header (company info) ── */}
+                    <div className="flex items-start gap-3 p-5 pb-0">
+                      <Avatar className="h-10 w-10 border border-border shrink-0 mt-0.5">
+                        <AvatarImage src={item.company_avatar_url || undefined} alt={item.company || "Company"} />
+                        <AvatarFallback className="bg-muted text-xs font-bold text-muted-foreground">
+                          {(item.company || "C").slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          {item.recruiter_id ? (
+                            <Link
+                              href={`/recruiter/public/${item.recruiter_id}`}
+                              className="text-sm font-semibold text-foreground/90 hover:text-foreground transition-colors truncate"
+                            >
+                              {item.company || `Recruiter #${item.recruiter_id}`}
+                            </Link>
+                          ) : (
+                            <span className="text-sm font-semibold text-foreground/90 truncate">
+                              {item.company || "Unknown Company"}
+                            </span>
+                          )}
+                          {item.recruiter_verified && (
+                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          {item.location && (
+                            <>
+                              <span>{item.location}</span>
+                              <span className="text-muted-foreground/50">•</span>
+                            </>
+                          )}
+                          {item.created_at && (
+                            <span>{timeAgo(item.created_at)}</span>
+                          )}
+                        </div>
+                      </div>
+                      {/* Match score pill & Hide Action */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1">
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                            {(item.score * 100).toFixed(0)}%
+                          </span>
+                          <span className="text-[9px] text-emerald-600/70 dark:text-emerald-500/70 font-medium">match</span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleHideJob(item.job_id);
+                          }}
+                          title="Hide this job"
+                        >
+                          <EyeOff className="h-3.5 w-3.5" />
+                          <span className="sr-only">Hide job</span>
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* ── Post body ── */}
+                    <div className="px-5 pt-3 pb-0">
                       <h3
-                        className="cursor-pointer text-base font-semibold text-zinc-100 hover:text-emerald-400 transition-colors"
+                        className="text-base font-semibold text-foreground cursor-pointer hover:text-emerald-500 transition-colors leading-snug"
                         onClick={() => void openDetail(item)}
                       >
                         {item.job_title}
                       </h3>
-                      <div className="flex items-center gap-2">
-                        <Avatar size="sm" className="border border-zinc-800/80">
-                          <AvatarImage src={item.company_avatar_url || undefined} alt={item.company || "Company"} />
-                          <AvatarFallback className="bg-zinc-900 text-[10px] text-zinc-400">
-                            {(item.company || "C").slice(0, 1).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <p className="flex items-center gap-1.5 text-xs text-zinc-400">
-                        {item.recruiter_id ? (
-                          <Link href={`/recruiter/public/${item.recruiter_id}`} className="underline underline-offset-2 hover:text-zinc-200 transition-colors">
-                            {item.company || `Job #${item.job_id}`}
-                          </Link>
-                        ) : (
-                          <span>{item.company || `Job #${item.job_id}`}</span>
-                        )}
-                        {item.recruiter_verified ? (
-                          <Badge variant="outline" className="gap-0.5 text-[9px] px-1.5 py-0 border-emerald-900/60 bg-emerald-950/20 text-emerald-400">
-                            <ShieldCheck className="h-2.5 w-2.5" /> Verified
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="gap-0.5 text-[9px] px-1.5 py-0 border-amber-900/60 bg-amber-950/20 text-amber-550">
-                            <ShieldAlert className="h-2.5 w-2.5" /> Unverified
-                          </Badge>
-                        )}
-                        </p>
-                      </div>
-                      {(item.company_phone || item.company_website) && (
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-500">
-                          {item.company_phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{item.company_phone}</span>}
-                          {item.company_website && (
-                            <a
-                              className="inline-flex items-center gap-1 underline underline-offset-2 hover:text-zinc-300 transition-colors"
-                              href={toWebsiteUrl(item.company_website)}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              <Globe className="h-3 w-3" />
-                              {item.company_website}
-                            </a>
-                          )}
-                        </div>
-                      )}
+
                       {item.brief_description && (
-                        <div className="mt-2 text-sm text-zinc-450 leading-relaxed max-w-[65ch]">
+                        <div className="mt-2 text-sm text-muted-foreground leading-relaxed">
                           <p>
                             {expandedBriefJobs.has(item.job_id) || item.brief_description.length <= BRIEF_PREVIEW_LIMIT
                               ? item.brief_description
-                              : `${item.brief_description.slice(0, BRIEF_PREVIEW_LIMIT)}...`}
+                              : `${item.brief_description.slice(0, BRIEF_PREVIEW_LIMIT)}…`}
                           </p>
                           {item.brief_description.length > BRIEF_PREVIEW_LIMIT && (
                             <button
                               type="button"
-                              className="mt-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 underline underline-offset-4 decoration-emerald-500/20 hover:decoration-emerald-400 transition-all"
+                              className="mt-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                               onClick={() => toggleBrief(item.job_id)}
                             >
-                              {expandedBriefJobs.has(item.job_id) ? "Show less" : "Read more"}
+                              {expandedBriefJobs.has(item.job_id) ? "show less" : "...see more"}
                             </button>
                           )}
                         </div>
                       )}
-                    </div>
-                    <div className="text-right bg-zinc-900/30 border border-zinc-850 px-3 py-1.5 rounded-lg select-none">
-                      <p className="text-lg font-mono font-bold text-emerald-400">
-                        {(item.score * 100).toFixed(0)}%
-                      </p>
-                      <p className="text-[8px] font-mono uppercase tracking-wider text-zinc-500">
-                        match
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Tags */}
-                  <div className="mt-3.5 flex flex-wrap gap-1.5">
-                    {item.location && (
-                      <Badge
-                        variant="secondary"
-                        className="gap-1 text-xs capitalize bg-zinc-900/40 border border-zinc-850 text-zinc-300 hover:bg-zinc-900/40"
-                      >
-                        <MapPin className="h-3 w-3 text-zinc-500" /> {item.location}
-                      </Badge>
-                    )}
-                    {item.experience_level && (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs capitalize bg-zinc-900/40 border border-zinc-850 text-zinc-300 hover:bg-zinc-900/40"
-                      >
-                        {item.experience_level}
-                      </Badge>
-                    )}
-                    {(item.salary_min > 0 || item.salary_max > 0) && (
-                      <Badge
-                        variant="secondary"
-                        className="gap-1 text-xs bg-zinc-900/40 border border-zinc-850 text-zinc-300 hover:bg-zinc-900/40"
-                      >
-                        <DollarSign className="h-3 w-3 text-zinc-500" />
-                        {formatSalary(item.salary_min)} –{" "}
-                        {formatSalary(item.salary_max)}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Dates */}
-                  {(item.created_at || item.start_date || item.end_date) && (
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] font-mono text-zinc-500">
-                      {item.created_at && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          Posted {new Date(item.created_at).toLocaleDateString()}
-                        </span>
-                      )}
-                      {item.start_date && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          Start {new Date(item.start_date).toLocaleDateString()}
-                        </span>
-                      )}
-                      {item.end_date && (
-                        <span className="flex items-center gap-1 font-semibold text-rose-500">
-                          <Calendar className="h-3 w-3" />
-                          Deadline {new Date(item.end_date).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Required skills */}
-                  {item.required_skills?.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {item.required_skills.map((s) => (
-                        <Badge
-                          key={s.name}
-                          variant="outline"
-                          className="text-[10px] font-mono bg-zinc-950/40 border-zinc-900 text-zinc-400 rounded-md"
-                        >
-                          {s.name}{" "}
-                          <span className="ml-1 text-zinc-650">
-                            Lv.{s.level}
-                          </span>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Score breakdown */}
-                  <div className="mt-4.5 grid grid-cols-3 gap-4 text-xs">
-                    {[
-                      { label: "Skills", value: item.skill_match, colorClass: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]", textClass: "text-emerald-400" },
-                      { label: "Preferences", value: item.preference_match, colorClass: "bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.3)]", textClass: "text-cyan-400" },
-                      { label: "Engagement", value: item.activity_score, colorClass: "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.3)]", textClass: "text-amber-400" },
-                    ].map((s) => (
-                      <div key={s.label} className="space-y-1.5">
-                        <div className="flex justify-between text-[10px] font-mono uppercase tracking-wider text-zinc-500">
-                          <span>{s.label}</span>
-                          <span className={cn("font-bold", s.textClass)}>
-                            {(s.value * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full bg-zinc-950 rounded-full overflow-hidden border border-zinc-900/60 p-[1px]">
-                          <div
-                            className={cn("h-full rounded-full transition-all duration-500", s.colorClass)}
-                            style={{ width: `${s.value * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="mt-4 flex items-center justify-between border-t border-zinc-900/60 pt-3.5">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-xs text-zinc-400 border-zinc-900 hover:border-zinc-800 hover:bg-zinc-900/40 hover:text-zinc-200 transition-all rounded-lg cursor-pointer active:scale-[0.98]"
-                        onClick={() => void openDetail(item)}
-                      >
-                        <Eye className="h-3.5 w-3.5" /> View Details
-                      </Button>
-                      <Button
-                        variant={savedJobs.has(item.job_id) ? "secondary" : "outline"}
-                        size="sm"
-                        className={cn(
-                          "gap-1.5 text-xs transition-all rounded-lg cursor-pointer active:scale-[0.98]",
-                          savedJobs.has(item.job_id)
-                            ? "bg-zinc-900 border-zinc-800 text-zinc-200 hover:bg-zinc-800/85"
-                            : "text-zinc-400 border-zinc-900 hover:border-zinc-800 hover:bg-zinc-900/40 hover:text-zinc-200"
+                      {/* ── Tags ── */}
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {item.experience_level && (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] capitalize bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 hover:bg-blue-500/20"
+                          >
+                            {item.experience_level}
+                          </Badge>
                         )}
-                        onClick={() => void track(item.job_id, "click")}
-                      >
-                        <Bookmark className="h-3.5 w-3.5" />
-                        {savedJobs.has(item.job_id) ? "Saved" : "Save"}
-                      </Button>
-                      {item.external_link && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5 text-xs text-blue-400 border-blue-950/40 hover:border-blue-900/60 hover:bg-blue-950/20 hover:text-blue-300 transition-all rounded-lg cursor-pointer active:scale-[0.98]"
-                          onClick={() => handleExternalLinkClick(item.job_id, item.external_link)}
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" /> Job Link
-                        </Button>
+                        {item.domain && (
+                          <Badge variant="secondary" className="text-[10px] bg-violet-500/10 text-violet-700 dark:text-violet-400 border border-violet-500/20 hover:bg-violet-500/20">
+                            {item.domain}
+                          </Badge>
+                        )}
+                        {item.work_mode && (
+                          <Badge variant="secondary" className="text-[10px] capitalize bg-muted/60 border border-border/60 text-muted-foreground hover:bg-muted/60">
+                            {item.work_mode}
+                          </Badge>
+                        )}
+                        {item.employment_type && (
+                          <Badge variant="secondary" className="text-[10px] capitalize bg-muted/60 border border-border/60 text-muted-foreground hover:bg-muted/60">
+                            {item.employment_type}
+                          </Badge>
+                        )}
+                        {(item.salary_min > 0 || item.salary_max > 0) && (
+                          <Badge
+                            variant="secondary"
+                            className="gap-0.5 text-[10px] bg-muted/60 border border-border/60 text-muted-foreground hover:bg-muted/60"
+                          >
+                            <DollarSign className="h-2.5 w-2.5" />
+                            {formatSalary(item.salary_min)} – {formatSalary(item.salary_max)}
+                          </Badge>
+                        )}
+                        {item.required_skills?.slice(0, 4).map((s) => (
+                          <Badge
+                            key={s.name}
+                            variant="outline"
+                            className="text-[10px] font-mono border-border text-muted-foreground rounded-md"
+                          >
+                            {s.name}
+                          </Badge>
+                        ))}
+                        {item.required_skills?.length > 4 && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] border-border text-muted-foreground/80 rounded-md"
+                          >
+                            +{item.required_skills.length - 4} more
+                          </Badge>
+                        )}
+                      </div>
+
+                      {item.end_date && (
+                        <p className="mt-2 text-[10px] font-medium text-rose-400/80">
+                          Deadline: {new Date(item.end_date).toLocaleDateString()}
+                        </p>
                       )}
                     </div>
 
-                    {appliedJobs.has(item.job_id) ? (
-                      <Button
-                        size="sm"
-                        disabled
-                        className="gap-1.5 text-xs bg-zinc-900 text-zinc-500 border border-zinc-850 opacity-100 rounded-lg"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Applied
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        className="gap-1.5 text-xs bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-semibold transition-all rounded-lg cursor-pointer active:scale-[0.98] shadow-md shadow-emerald-500/10"
-                        onClick={() => openApplyDialog(item.job_id, item.job_title)}
-                      >
-                        <Send className="h-3.5 w-3.5" /> Apply
-                      </Button>
-                    )}
+                    {/* ── Action bar ── */}
+                    <div className="flex items-center justify-between border-t border-border mt-4 px-2 py-1.5">
+                      <div className="flex">
+                        <button
+                          type="button"
+                          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-all cursor-pointer"
+                          onClick={() => void openDetail(item)}
+                        >
+                          <Eye className="h-4 w-4" />
+                          <span className="hidden sm:inline">Details</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={cn(
+                            "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-all cursor-pointer",
+                            alreadySaved
+                              ? "text-emerald-500 hover:bg-emerald-500/10"
+                              : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                          )}
+                          onClick={() => void track(item.job_id, "click")}
+                        >
+                          <Bookmark className={cn("h-4 w-4", alreadySaved && "fill-emerald-500")} />
+                          <span className="hidden sm:inline">{alreadySaved ? "Saved" : "Save"}</span>
+                        </button>
+                        {item.external_link && (
+                          <button
+                            type="button"
+                            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-all cursor-pointer"
+                            onClick={() => handleExternalLinkClick(item.job_id, item.external_link)}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            <span className="hidden sm:inline">Link</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {alreadyApplied ? (
+                        <div className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted-foreground">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          <span>Applied</span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="flex items-center gap-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white dark:text-zinc-950 text-xs font-semibold px-4 py-1.5 transition-all cursor-pointer active:scale-[0.97] shadow-sm shadow-emerald-500/10"
+                          onClick={() => openApplyDialog(item.job_id, item.job_title)}
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          Apply
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -678,6 +702,15 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                           : "—"
                       }
                     />
+                    {detailJob.domain && (
+                      <InfoRow icon={<Layers className="h-4 w-4" />} label="Domain" value={detailJob.domain} />
+                    )}
+                    {detailJob.work_mode && (
+                      <InfoRow icon={<Monitor className="h-4 w-4" />} label="Work Mode" value={detailJob.work_mode} />
+                    )}
+                    {detailJob.employment_type && (
+                      <InfoRow icon={<Clock className="h-4 w-4" />} label="Type" value={detailJob.employment_type} />
+                    )}
                     <InfoRow
                       icon={<Users className="h-4 w-4" />}
                       label="Candidates"
@@ -759,7 +792,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                   {detailJob.external_link && (
                     <Button
                       variant="outline"
-                      className="flex-1 gap-1.5 text-xs text-blue-400 border-blue-950/45 hover:border-blue-900/60 hover:bg-blue-950/20 hover:text-blue-300"
+                      className="flex-1 gap-1.5 text-xs text-blue-500 border-blue-500/30 hover:bg-blue-500/10 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
                       onClick={() => handleExternalLinkClick(detailJob.id, detailJob.external_link)}
                     >
                       <ExternalLink className="h-4 w-4" /> Job Link

@@ -22,6 +22,7 @@ from app.models import (
     CandidateProfile,
     EmailVerification,
     Event,
+    HiddenJob,
     InteractionLog,
     Interview,
     Job,
@@ -549,6 +550,9 @@ def create_or_update_candidate_profile(
         profile.skills = skills_json
         profile.experience_level = payload.experience_level
         profile.preferred_locations = locations_csv
+        profile.preferred_domains = payload.preferred_domains
+        profile.preferred_work_modes = payload.preferred_work_modes
+        profile.preferred_employment_types = payload.preferred_employment_types
         profile.preferred_salary_min = payload.preferred_salary_min
         profile.birth_date = payload.birth_date
         profile.updated_at = now_utc()
@@ -558,6 +562,9 @@ def create_or_update_candidate_profile(
             skills=skills_json,
             experience_level=payload.experience_level,
             preferred_locations=locations_csv,
+            preferred_domains=payload.preferred_domains,
+            preferred_work_modes=payload.preferred_work_modes,
+            preferred_employment_types=payload.preferred_employment_types,
             preferred_salary_min=payload.preferred_salary_min,
             birth_date=payload.birth_date,
             last_login_at=now_utc(),
@@ -807,6 +814,9 @@ def get_recruiter_public_profile(
                 "id": j.id,
                 "title": j.title,
                 "location": j.location,
+                "domain": j.domain,
+                "work_mode": j.work_mode,
+                "employment_type": j.employment_type,
                 "start_date": j.start_date.isoformat() if j.start_date else None,
                 "end_date": j.end_date.isoformat() if j.end_date else None,
             }
@@ -984,9 +994,46 @@ def admin_stats(
 
 
 
+@app.get("/admin/recruiters")
+def list_all_recruiters(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Admin endpoint: list all recruiters with job counts and stats."""
+    require_role(current_user, "admin")
+    recruiters = db.query(User).filter(User.role == "recruiter").order_by(User.created_at.desc()).all()
+    result = []
+    for r in recruiters:
+        profile = db.query(RecruiterProfile).filter(RecruiterProfile.user_id == r.id).first()
+        job_count = db.query(Job).filter(Job.recruiter_id == r.id).count()
+        job_ids = [j.id for j in db.query(Job.id).filter(Job.recruiter_id == r.id).all()]
+        total_applicants = (
+            db.query(Application).filter(Application.job_id.in_(job_ids)).count()
+            if job_ids else 0
+        )
+        result.append({
+            "user_id": r.id,
+            "name": r.name,
+            "email": r.email,
+            "phone": r.phone,
+            "company_name": profile.company_name if profile else "",
+            "company_website": profile.company_website if profile else "",
+            "avatar_url": profile.avatar_url if profile else "",
+            "verification_status": profile.verification_status if profile else "UNVERIFIED",
+            "job_count": job_count,
+            "total_applicants": total_applicants,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        })
+    return api_ok(result)
+
+
 @app.post("/jobs")
 def create_job(payload: JobCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> dict:
     require_role(current_user, "recruiter")
+    # Block unverified recruiters from posting jobs
+    rec_profile = db.query(RecruiterProfile).filter(RecruiterProfile.user_id == current_user.id).first()
+    if not rec_profile or rec_profile.verification_status != "VERIFIED":
+        raise HTTPException(status_code=403, detail="Only verified recruiters can post jobs. Please complete verification first.")
     if current_user.id != payload.recruiter_id:
         raise HTTPException(status_code=403, detail="Recruiter can only create jobs owned by self.")
     recruiter = db.query(User).filter(User.id == payload.recruiter_id, User.role == "recruiter").first()
@@ -1001,6 +1048,9 @@ def create_job(payload: JobCreate, db: Session = Depends(get_db), current_user: 
         salary_min=payload.salary_min,
         salary_max=payload.salary_max,
         experience_level=payload.experience_level,
+        domain=payload.domain,
+        work_mode=payload.work_mode,
+        employment_type=payload.employment_type,
         start_date=payload.start_date,
         end_date=payload.end_date,
         external_link=payload.external_link,
@@ -1061,6 +1111,9 @@ def list_my_jobs(
             "salary_min": j.salary_min,
             "salary_max": j.salary_max,
             "experience_level": j.experience_level,
+            "domain": j.domain,
+            "work_mode": j.work_mode,
+            "employment_type": j.employment_type,
             "start_date": j.start_date.isoformat() if j.start_date else None,
             "end_date": j.end_date.isoformat() if j.end_date else None,
             "external_link": j.external_link,
@@ -1110,6 +1163,9 @@ def list_saved_jobs(
             "salary_min": j.salary_min,
             "salary_max": j.salary_max,
             "experience_level": j.experience_level,
+            "domain": j.domain,
+            "work_mode": j.work_mode,
+            "employment_type": j.employment_type,
             "company": company,
             **_get_company_contact(db, j.recruiter_id),
             "recruiter_verified": _get_recruiter_verified(db, j.recruiter_id),
@@ -1140,6 +1196,9 @@ def get_job(job_id: int, db: Session = Depends(get_db), current_user: User = Dep
         "salary_min": job.salary_min,
         "salary_max": job.salary_max,
         "experience_level": job.experience_level,
+        "domain": job.domain,
+        "work_mode": job.work_mode,
+        "employment_type": job.employment_type,
         "start_date": job.start_date.isoformat() if job.start_date else None,
         "end_date": job.end_date.isoformat() if job.end_date else None,
         "external_link": job.external_link,
@@ -1160,6 +1219,10 @@ def update_job(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     require_role(current_user, "recruiter")
+    # Block unverified recruiters from editing jobs
+    rec_profile = db.query(RecruiterProfile).filter(RecruiterProfile.user_id == current_user.id).first()
+    if not rec_profile or rec_profile.verification_status != "VERIFIED":
+        raise HTTPException(status_code=403, detail="Only verified recruiters can edit jobs. Please complete verification first.")
     job = db.query(Job).filter(Job.id == job_id, Job.recruiter_id == current_user.id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found or not owned by you.")
@@ -1170,6 +1233,9 @@ def update_job(
     job.salary_min = payload.salary_min
     job.salary_max = payload.salary_max
     job.experience_level = payload.experience_level
+    job.domain = payload.domain
+    job.work_mode = payload.work_mode
+    job.employment_type = payload.employment_type
     job.start_date = payload.start_date
     job.end_date = payload.end_date
     job.external_link = payload.external_link
@@ -1382,6 +1448,9 @@ def list_all_applications_for_recruiter(
             "candidate_dob": candidate.date_of_birth if candidate else "",
             "skills": profile.skills if profile else [],
             "experience_level": profile.experience_level if profile else "",
+            "domain": profile.domain if profile else "",
+            "work_mode": profile.work_mode if profile else "",
+            "employment_type": profile.employment_type if profile else "",
             "cover_letter": a.cover_letter,
             "status": a.status,
             "score": rec.final_score if rec else None,
@@ -1438,6 +1507,9 @@ def list_applicants_for_job(
             "candidate_dob": candidate.date_of_birth if candidate else "",
             "skills": profile.skills if profile else [],
             "experience_level": profile.experience_level if profile else "",
+            "domain": profile.domain if profile else "",
+            "work_mode": profile.work_mode if profile else "",
+            "employment_type": profile.employment_type if profile else "",
             "cover_letter": a.cover_letter,
             "status": a.status,
             "score": rec.final_score if rec else None,
@@ -1889,6 +1961,29 @@ def recruiter_dashboard(
     )
 
 
+@app.post("/feed/candidate/{candidate_id}/hide-job/{job_id}")
+def hide_job(
+    candidate_id: int,
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    require_role(current_user, "candidate")
+    if current_user.id != candidate_id:
+        raise HTTPException(status_code=403, detail="Forbidden action.")
+    
+    existing = db.query(HiddenJob).filter(
+        HiddenJob.candidate_id == candidate_id,
+        HiddenJob.job_id == job_id
+    ).first()
+    
+    if not existing:
+        new_hidden = HiddenJob(candidate_id=candidate_id, job_id=job_id)
+        db.add(new_hidden)
+        db.commit()
+    
+    return api_ok({"message": "Job hidden successfully"})
+
 @app.get("/feed/candidate/{candidate_id}")
 def candidate_feed(
     candidate_id: int,
@@ -1903,6 +1998,15 @@ def candidate_feed(
     if current_user.id != candidate_id:
         raise HTTPException(status_code=403, detail="Forbidden candidate feed.")
     rec_query = db.query(Recommendation).filter(Recommendation.candidate_id == candidate_id)
+    
+    # Exclude jobs the candidate has already applied to or hidden
+    applied_job_subquery = db.query(Application.job_id).filter(Application.candidate_id == candidate_id)
+    hidden_job_subquery = db.query(HiddenJob.job_id).filter(HiddenJob.candidate_id == candidate_id)
+    rec_query = rec_query.filter(
+        ~Recommendation.job_id.in_(applied_job_subquery),
+        ~Recommendation.job_id.in_(hidden_job_subquery)
+    )
+    
     if min_score is not None:
         rec_query = rec_query.filter(Recommendation.final_score >= min_score)
     effective_limit = min(max(top_k, 1), 100)
@@ -1939,6 +2043,9 @@ def candidate_feed(
                 "salary_min": jobs[row.job_id].salary_min if row.job_id in jobs else 0,
                 "salary_max": jobs[row.job_id].salary_max if row.job_id in jobs else 0,
                 "experience_level": jobs[row.job_id].experience_level if row.job_id in jobs else "",
+                "domain": jobs[row.job_id].domain if row.job_id in jobs else "",
+                "work_mode": jobs[row.job_id].work_mode if row.job_id in jobs else "",
+                "employment_type": jobs[row.job_id].employment_type if row.job_id in jobs else "",
                 "required_skills": jobs[row.job_id].required_skills if row.job_id in jobs else [],
                 "company": _get_company_name(db, jobs[row.job_id].recruiter_id) if row.job_id in jobs else "",
                 **(_get_company_contact(db, jobs[row.job_id].recruiter_id) if row.job_id in jobs else {"company_phone": "", "company_website": ""}),

@@ -19,6 +19,9 @@ import {
   ShieldAlert,
   Phone,
   Globe,
+  Layers,
+  Monitor,
+  Clock,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -52,6 +55,9 @@ type SavedJob = {
   salary_min: number;
   salary_max: number;
   experience_level: string;
+  domain: string;
+  work_mode: string;
+  employment_type: string;
   company: string;
   company_avatar_url: string;
   company_phone: string;
@@ -74,6 +80,9 @@ type JobDetail = {
   salary_min: number;
   salary_max: number;
   experience_level: string;
+  domain: string;
+  work_mode: string;
+  employment_type: string;
   start_date: string | null;
   end_date: string | null;
   created_at: string | null;
@@ -305,6 +314,21 @@ function SavedJobsContent({ session }: { session: SessionData }) {
                         >
                           {job.experience_level}
                         </Badge>
+                        {job.domain && (
+                          <Badge variant="outline" className="text-[10px]">
+                            {job.domain}
+                          </Badge>
+                        )}
+                        {job.work_mode && (
+                          <Badge variant="outline" className="text-[10px] capitalize">
+                            {job.work_mode}
+                          </Badge>
+                        )}
+                        {job.employment_type && (
+                          <Badge variant="outline" className="text-[10px] capitalize">
+                            {job.employment_type}
+                          </Badge>
+                        )}
                         {job.created_at && (
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
@@ -488,6 +512,15 @@ function SavedJobsContent({ session }: { session: SessionData }) {
                           : "—"
                       }
                     />
+                    {detailJob.domain && (
+                      <InfoRow icon={<Layers className="h-4 w-4" />} label="Domain" value={detailJob.domain} />
+                    )}
+                    {detailJob.work_mode && (
+                      <InfoRow icon={<Monitor className="h-4 w-4" />} label="Work Mode" value={detailJob.work_mode} />
+                    )}
+                    {detailJob.employment_type && (
+                      <InfoRow icon={<Clock className="h-4 w-4" />} label="Type" value={detailJob.employment_type} />
+                    )}
                     <InfoRow
                       icon={<Users className="h-4 w-4" />}
                       label="Candidates"

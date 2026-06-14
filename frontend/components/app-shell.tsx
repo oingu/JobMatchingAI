@@ -23,6 +23,8 @@ import {
   Megaphone,
 } from "lucide-react";
 
+import { ThemeToggle } from "@/components/theme-toggle";
+
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +68,7 @@ const recruiterNav: NavItem[] = [
 const adminNav: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
   { href: "/admin/verifications", label: "Verifications", icon: <ShieldCheck className="h-4 w-4" /> },
+  { href: "/admin/recruiters", label: "Recruiters", icon: <Briefcase className="h-4 w-4" /> },
   { href: "/admin/users", label: "Users", icon: <Users className="h-4 w-4" /> },
 ];
 
@@ -230,23 +233,23 @@ export function AppShell({ role, title, children }: AppShellProps) {
   }, [role, router, session, toast]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-950 text-zinc-100">
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       {/* Sidebar */}
-      <aside className="sticky top-0 flex h-screen w-60 flex-col border-r border-zinc-900/80 bg-zinc-950/50 backdrop-blur-md select-none">
+      <aside className="sticky top-0 flex h-screen w-60 flex-col border-r border-border/80 bg-background/50 backdrop-blur-md select-none">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 border border-zinc-800 shadow-inner">
-            <Zap className="h-4 w-4 text-emerald-400 fill-emerald-400/5" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-card border border-border shadow-inner">
+            <Zap className="h-4 w-4 text-emerald-500 fill-emerald-500/10" />
           </div>
           <div>
-            <p className="text-sm font-bold tracking-tight text-zinc-100">JobMatch AI</p>
-            <p className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">Matching Engine</p>
+            <p className="text-sm font-bold tracking-tight text-foreground">JobMatch AI</p>
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Matching Engine</p>
           </div>
         </div>
 
-        <div className="h-[1px] bg-zinc-900/80 mx-5" />
+        <div className="h-[1px] bg-border/80 mx-5" />
 
         <ScrollArea className="flex-1 px-3 py-4">
-          <p className="mb-2.5 px-2 text-[10px] font-mono uppercase tracking-widest text-zinc-600">
+          <p className="mb-2.5 px-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/80">
             {role === "recruiter" ? "Recruiter console" : "Candidate portal"}
           </p>
           <nav className="space-y-1">
@@ -259,11 +262,11 @@ export function AppShell({ role, title, children }: AppShellProps) {
                   className={cn(
                     "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium border transition-all duration-200",
                     active
-                      ? "bg-zinc-900 border-zinc-800 text-zinc-100 shadow-sm shadow-black/20"
-                      : "border-transparent text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/40",
+                      ? "bg-accent border-border text-accent-foreground shadow-sm shadow-foreground/5"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40",
                   )}
                 >
-                  <span className={cn("transition-colors", active ? "text-emerald-400" : "text-zinc-500")}>
+                  <span className={cn("transition-colors", active ? "text-emerald-500" : "text-muted-foreground")}>
                     {item.icon}
                   </span>
                   <span>{item.label}</span>
@@ -288,64 +291,65 @@ export function AppShell({ role, title, children }: AppShellProps) {
       </aside>
 
       {/* Main content */}
-      <main className="flex h-screen flex-1 flex-col overflow-hidden bg-zinc-950">
-        <header className="sticky top-0 z-40 flex items-center justify-between border-b border-zinc-900/80 bg-zinc-950/80 px-6 py-4 backdrop-blur-md">
+      <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background">
+        <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border/80 bg-background/80 px-6 py-4 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
-            {links.find((l) => l.href === pathname)?.icon || <Briefcase className="h-4 w-4 text-zinc-500" />}
-            <h1 className="text-sm font-semibold tracking-tight text-zinc-200">{title}</h1>
+            {links.find((l) => l.href === pathname)?.icon || <Briefcase className="h-4 w-4 text-muted-foreground" />}
+            <h1 className="text-sm font-semibold tracking-tight text-foreground">{title}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <Badge variant="outline" className="capitalize text-[10px] font-mono text-zinc-400 border-zinc-800 bg-zinc-900/30 px-2 py-0.5">
+            <ThemeToggle />
+            <Badge variant="outline" className="capitalize text-[10px] font-mono text-muted-foreground border-border bg-muted/30 px-2 py-0.5">
               {role}
             </Badge>
             {userName && (
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-full outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/50 cursor-pointer">
-                  <span className="text-xs font-semibold text-zinc-300 hover:text-zinc-100 transition-colors hidden sm:inline">{userName}</span>
-                  <Avatar className="h-7 w-7 border border-zinc-800">
+                  <span className="text-xs font-semibold text-foreground/90 hover:text-foreground transition-colors hidden sm:inline">{userName}</span>
+                  <Avatar className="h-7 w-7 border border-border">
                     {avatarUrl && (
                       <AvatarImage src={avatarUrl} alt={userName} className="object-cover" />
                     )}
-                    <AvatarFallback className="bg-zinc-900 text-[10px] font-bold text-zinc-300">
+                    <AvatarFallback className="bg-muted text-[10px] font-bold text-muted-foreground">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-zinc-850 text-zinc-200">
+                <DropdownMenuContent align="end" className="w-56 bg-popover border-border text-popover-foreground">
                   <DropdownMenuGroup>
                     <DropdownMenuLabel>
-                      <p className="text-xs font-bold text-zinc-200">{userName}</p>
-                      <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{session?.email}</p>
+                      <p className="text-xs font-bold text-foreground">{userName}</p>
+                      <p className="text-[10px] font-mono text-muted-foreground mt-0.5">{session?.email}</p>
                     </DropdownMenuLabel>
                   </DropdownMenuGroup>
-                  <DropdownMenuSeparator className="bg-zinc-800" />
+                  <DropdownMenuSeparator className="bg-border" />
                   <DropdownMenuGroup>
                     <DropdownMenuItem
-                      className="gap-2 cursor-pointer text-xs focus:bg-zinc-800 focus:text-zinc-100 hover:bg-zinc-800"
+                      className="gap-2 cursor-pointer text-xs focus:bg-accent focus:text-accent-foreground hover:bg-accent"
                       onClick={() => {
                         const dest = role === "admin" ? "/admin/settings" : role === "recruiter" ? "/recruiter/settings" : "/candidate/settings";
                         router.push(dest);
                       }}
                     >
-                      <Settings className="h-3.5 w-3.5 text-zinc-550" />
+                      <Settings className="h-3.5 w-3.5 text-muted-foreground" />
                       Settings
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
-                  <DropdownMenuSeparator className="bg-zinc-800" />
+                  <DropdownMenuSeparator className="bg-border" />
                   <DropdownMenuGroup>
                     <DropdownMenuItem
-                      className="gap-2 cursor-pointer text-xs focus:bg-zinc-800 focus:text-zinc-100 hover:bg-zinc-800"
+                      className="gap-2 cursor-pointer text-xs focus:bg-accent focus:text-accent-foreground hover:bg-accent"
                       onClick={() => {
                         clearSession();
                         router.replace("/login");
                       }}
                     >
-                      <LogOut className="h-3.5 w-3.5 text-zinc-550" />
+                      <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
                       Log out
                     </DropdownMenuItem>
                     {role !== "admin" && (
                       <DropdownMenuItem
-                        className="gap-2 cursor-pointer text-xs text-rose-450 focus:text-rose-400 focus:bg-rose-950/20 hover:bg-rose-950/10"
+                        className="gap-2 cursor-pointer text-xs text-destructive focus:text-destructive focus:bg-destructive/20 hover:bg-destructive/10"
                         onClick={() => setDeleteDialogOpen(true)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -358,7 +362,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
             )}
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto p-6 bg-zinc-950 select-text">{children}</div>
+        <div className="flex-1 overflow-y-auto p-6 bg-background select-text">{children}</div>
       </main>
 
       {/* Delete Account Confirmation */}

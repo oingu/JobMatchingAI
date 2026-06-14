@@ -34,6 +34,9 @@ class CandidateProfileCreate(BaseModel):
     skills: Annotated[list[SkillEntry], Field(min_length=1)]
     experience_level: Literal["junior", "middle", "senior"]
     preferred_locations: Annotated[list[str], Field(min_length=1)]
+    preferred_domains: str = ""
+    preferred_work_modes: str = ""
+    preferred_employment_types: str = ""
     preferred_salary_min: int = Field(ge=0)
     birth_date: str = Field(min_length=4)
     phone: str = Field(default="")
@@ -54,6 +57,9 @@ class JobCreate(BaseModel):
     salary_min: int = Field(ge=0)
     salary_max: int = Field(ge=0)
     experience_level: Literal["junior", "middle", "senior"]
+    domain: str = ""
+    work_mode: str = "On-site"
+    employment_type: str = "Full-time"
     start_date: datetime | None = None
     end_date: datetime | None = None
     external_link: str = ""
@@ -79,6 +85,9 @@ class JobUpdate(BaseModel):
     salary_min: int = Field(ge=0)
     salary_max: int = Field(ge=0)
     experience_level: Literal["junior", "middle", "senior"]
+    domain: str = ""
+    work_mode: str = "On-site"
+    employment_type: str = "Full-time"
     start_date: datetime | None = None
     end_date: datetime | None = None
     external_link: str = ""

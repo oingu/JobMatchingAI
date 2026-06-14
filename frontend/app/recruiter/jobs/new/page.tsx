@@ -13,6 +13,8 @@ import {
   Users,
   Calendar,
   Clock,
+  ShieldAlert,
+  ArrowRight,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -64,6 +66,9 @@ interface JobItem {
   salary_min: number;
   salary_max: number;
   experience_level: string;
+  domain: string;
+  work_mode: string;
+  employment_type: string;
   start_date: string | null;
   end_date: string | null;
   external_link: string;
@@ -109,6 +114,9 @@ function MyPostsContent({ session }: { session: SessionData }) {
   const [applicantsJobTitle, setApplicantsJobTitle] = useState("");
   const [applicantsOpen, setApplicantsOpen] = useState(false);
   const [expandedBriefJobs, setExpandedBriefJobs] = useState<Set<number>>(new Set());
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+
+  const isVerified = verificationStatus === "VERIFIED";
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -124,6 +132,18 @@ function MyPostsContent({ session }: { session: SessionData }) {
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
+
+  useEffect(() => {
+    async function fetchVerification() {
+      try {
+        const res = await apiRequest<{ verification_status?: string } | null>("/recruiter-profiles/mine", { session });
+        setVerificationStatus(res?.data?.verification_status ?? "UNVERIFIED");
+      } catch {
+        setVerificationStatus("UNVERIFIED");
+      }
+    }
+    void fetchVerification();
+  }, [session]);
 
   async function handleDelete() {
     if (deleteId === null) return;
@@ -197,15 +217,36 @@ function MyPostsContent({ session }: { session: SessionData }) {
         </Card>
       </div>
 
+      {/* Verification warning */}
+      {verificationStatus !== null && !isVerified && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-950/20 p-4">
+          <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-300">Account Not Verified</p>
+            <p className="mt-1 text-xs text-amber-200/70">
+              Only verified recruiters can post and edit jobs. Please complete your company verification to start posting.
+            </p>
+            <Link
+              href="/recruiter/verification"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors"
+            >
+              Go to Verification <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Header + action */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-semibold">
           All Posts ({jobs.length})
         </h2>
-        <Button onClick={() => setSheetOpen(true)} className="gap-1.5">
-          <Plus className="h-4 w-4" />
-          Post a Job
-        </Button>
+        {isVerified && (
+          <Button onClick={() => setSheetOpen(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Post a Job
+          </Button>
+        )}
       </div>
 
       {/* Job list */}
@@ -274,6 +315,21 @@ function MyPostsContent({ session }: { session: SessionData }) {
                       >
                         {job.experience_level}
                       </Badge>
+                      {job.domain && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {job.domain}
+                        </Badge>
+                      )}
+                      {job.work_mode && (
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          {job.work_mode}
+                        </Badge>
+                      )}
+                      {job.employment_type && (
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          {job.employment_type}
+                        </Badge>
+                      )}
                     </div>
 
                     {/* Dates row */}
@@ -668,6 +724,9 @@ function CreateJobForm({
   const [experienceLevel, setExperienceLevel] = useState("junior");
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
+  const [domain, setDomain] = useState("");
+  const [workMode, setWorkMode] = useState("On-site");
+  const [employmentType, setEmploymentType] = useState("Full-time");
   const [submitting, setSubmitting] = useState(false);
   const [externalLink, setExternalLink] = useState("");
 
@@ -699,6 +758,9 @@ function CreateJobForm({
         salary_min: salaryMin,
         salary_max: salaryMax,
         experience_level: experienceLevel,
+        domain,
+        work_mode: workMode,
+        employment_type: employmentType,
         external_link: externalLink,
       };
       if (startDate) body.start_date = startDate.toISOString();
@@ -794,6 +856,44 @@ function CreateJobForm({
             <option value="middle">Middle</option>
             <option value="senior">Senior</option>
           </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Domain / Industry</Label>
+          <Input
+            id="domain"
+            placeholder="e.g. Automotive, FinTech, E-commerce..."
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label>Work Mode</Label>
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={workMode}
+              onChange={(e) => setWorkMode(e.target.value)}
+            >
+              <option value="On-site">On-site</option>
+              <option value="Hybrid">Hybrid</option>
+              <option value="Remote">Remote</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Employment Type</Label>
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={employmentType}
+              onChange={(e) => setEmploymentType(e.target.value)}
+            >
+              <option value="Full-time">Full-time</option>
+              <option value="Part-time">Part-time</option>
+              <option value="Contract">Contract</option>
+              <option value="Internship">Internship</option>
+            </select>
+          </div>
         </div>
 
         {/* Date fields */}
@@ -942,8 +1042,11 @@ function EditJobForm({
     job.start_date ? new Date(job.start_date) : undefined,
   );
   const [endDate, setEndDate] = useState<Date | undefined>(
-    job.end_date ? new Date(job.end_date) : undefined,
+    job.end_date ? new Date(job.end_date) : undefined
   );
+  const [domain, setDomain] = useState(job.domain || "");
+  const [workMode, setWorkMode] = useState(job.work_mode || "On-site");
+  const [employmentType, setEmploymentType] = useState(job.employment_type || "Full-time");
   const [submitting, setSubmitting] = useState(false);
   const [externalLink, setExternalLink] = useState(job.external_link || "");
 
@@ -974,6 +1077,9 @@ function EditJobForm({
         salary_min: salaryMin,
         salary_max: salaryMax,
         experience_level: experienceLevel,
+        domain,
+        work_mode: workMode,
+        employment_type: employmentType,
         external_link: externalLink,
       };
       if (startDate) body.start_date = startDate.toISOString();
@@ -1068,6 +1174,44 @@ function EditJobForm({
             <option value="middle">Middle</option>
             <option value="senior">Senior</option>
           </select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label>Domain / Industry</Label>
+          <Input
+            id="edit-domain"
+            placeholder="e.g. Automotive, FinTech, E-commerce..."
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label>Work Mode</Label>
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={workMode}
+              onChange={(e) => setWorkMode(e.target.value)}
+            >
+              <option value="On-site">On-site</option>
+              <option value="Hybrid">Hybrid</option>
+              <option value="Remote">Remote</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Employment Type</Label>
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={employmentType}
+              onChange={(e) => setEmploymentType(e.target.value)}
+            >
+              <option value="Full-time">Full-time</option>
+              <option value="Part-time">Part-time</option>
+              <option value="Contract">Contract</option>
+              <option value="Internship">Internship</option>
+            </select>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

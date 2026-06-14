@@ -39,6 +39,9 @@ class CandidateProfile(Base):
     skills = Column(JSON, default=[], nullable=False)  # [{name, level}] level 1-5
     experience_level = Column(String(50), default="junior", nullable=False)
     preferred_locations = Column(Text, default="", nullable=False)
+    preferred_domains = Column(Text, default="", nullable=False)
+    preferred_work_modes = Column(Text, default="", nullable=False)
+    preferred_employment_types = Column(Text, default="", nullable=False)
     preferred_salary_min = Column(Integer, default=0, nullable=False)
     birth_date = Column(String(20), default="", nullable=False)
     avatar_url = Column(String(500), default="", nullable=False)
@@ -91,6 +94,9 @@ class Job(Base):
     salary_min = Column(Integer, default=0, nullable=False)
     salary_max = Column(Integer, default=0, nullable=False)
     experience_level = Column(String(50), default="junior", nullable=False)
+    domain = Column(String(100), default="", nullable=False)
+    work_mode = Column(String(50), default="On-site", nullable=False)
+    employment_type = Column(String(50), default="Full-time", nullable=False)
     start_date = Column(DateTime(timezone=True), nullable=True)
     end_date = Column(DateTime(timezone=True), nullable=True)
     external_link = Column(String(500), default="", nullable=False)
@@ -224,3 +230,17 @@ class ApplicationMessage(Base):
 
     application = relationship("Application")
     sender = relationship("User")
+
+class HiddenJob(Base):
+    __tablename__ = "hidden_jobs"
+    __table_args__ = (
+        UniqueConstraint("candidate_id", "job_id", name="uq_hidden_job_candidate_job"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=now_utc, nullable=False)
+
+    candidate = relationship("User", foreign_keys=[candidate_id])
+    job = relationship("Job")

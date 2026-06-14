@@ -52,7 +52,7 @@ type RecruiterPublic = {
   bio: string;
   overview: Array<{ title?: string; value?: string }>;
   verification_status: string;
-  jobs: Array<{ id: number; title: string; location: string; start_date: string | null; end_date: string | null }>;
+  jobs: Array<{ id: number; title: string; location: string; domain: string; work_mode: string; employment_type: string; start_date: string | null; end_date: string | null }>;
 };
 
 function toWebsiteUrl(value: string): string {
@@ -258,6 +258,11 @@ export default function RecruiterPublicProfilePage() {
                             <MapPin className="h-3.5 w-3.5 text-zinc-500" />
                             {j.location || "Remote"}
                           </p>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {j.domain && <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-400">{j.domain}</Badge>}
+                            {j.work_mode && <Badge variant="outline" className="text-[10px] capitalize border-zinc-700 text-zinc-400">{j.work_mode}</Badge>}
+                            {j.employment_type && <Badge variant="outline" className="text-[10px] capitalize border-zinc-700 text-zinc-400">{j.employment_type}</Badge>}
+                          </div>
                         </div>
 
                         {(j.start_date || j.end_date) && (

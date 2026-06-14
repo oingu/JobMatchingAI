@@ -49,6 +49,9 @@ interface SavedProfile {
   skills: SkillEntry[];
   experience_level: string;
   preferred_locations: string;
+  preferred_domains: string;
+  preferred_work_modes: string;
+  preferred_employment_types: string;
   preferred_salary_min: number;
   birth_date: string;
   avatar_url: string;
@@ -74,10 +77,13 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
   const [skills, setSkills] = useState<SkillEntry[]>([]);
   const [experienceLevel, setExperienceLevel] = useState("junior");
   const [locations, setLocations] = useState("");
+  const [domains, setDomains] = useState("");
+  const [workModes, setWorkModes] = useState("");
+  const [employmentTypes, setEmploymentTypes] = useState("");
   const [salaryMin, setSalaryMin] = useState(0);
   const [birthDate, setBirthDate] = useState("");
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const [backup, setBackup] = useState<{ skills: SkillEntry[], experienceLevel: string, locations: string, salaryMin: number } | null>(null);
+  const [backup, setBackup] = useState<{ skills: SkillEntry[], experienceLevel: string, locations: string, domains: string, workModes: string, employmentTypes: string, salaryMin: number } | null>(null);
 
   const [newSkillName, setNewSkillName] = useState("");
   const [newSkillLevel, setNewSkillLevel] = useState(3);
@@ -108,6 +114,9 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
           setSkills(res.data.skills ?? []);
           setExperienceLevel(res.data.experience_level || "junior");
           setLocations(res.data.preferred_locations || "");
+          setDomains(res.data.preferred_domains || "");
+          setWorkModes(res.data.preferred_work_modes || "");
+          setEmploymentTypes(res.data.preferred_employment_types || "");
           setSalaryMin(res.data.preferred_salary_min || 0);
           setBirthDate(res.data.birth_date || "");
           setAvatarUrl(res.data.avatar_url || "");
@@ -148,6 +157,9 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
           skills,
           experience_level: experienceLevel,
           preferred_locations: locations.split(",").map((s) => s.trim()).filter(Boolean),
+          preferred_domains: domains,
+          preferred_work_modes: workModes,
+          preferred_employment_types: employmentTypes,
           preferred_salary_min: salaryMin,
           birth_date: birthDate,
         },
@@ -164,6 +176,9 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
     setSkills(backup.skills);
     setExperienceLevel(backup.experienceLevel);
     setLocations(backup.locations);
+    setDomains(backup.domains);
+    setWorkModes(backup.workModes);
+    setEmploymentTypes(backup.employmentTypes);
     setSalaryMin(backup.salaryMin);
     setBackup(null);
     setExtraction(null);
@@ -203,7 +218,7 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
         setGeminiError(result.error || result.gemini_error || null);
         
         if (result.parsed.skills.length > 0) {
-          setBackup({ skills, experienceLevel, locations, salaryMin });
+          setBackup({ skills, experienceLevel, locations, domains, workModes, employmentTypes, salaryMin });
           setSkills(result.parsed.skills);
           setExperienceLevel(result.parsed.experience_level);
           if (result.parsed.locations.length > 0) setLocations(result.parsed.locations.join(","));
@@ -504,7 +519,38 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
                     </div>
                     <div className="space-y-1.5">
                       <Label>Preferred Locations</Label>
-                      <Input value={locations} onChange={(e) => setLocations(e.target.value)} placeholder="hanoi, remote" />
+                      <Input value={locations} onChange={(e) => setLocations(e.target.value)} placeholder="e.g. hanoi, remote" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Preferred Domains / Industries</Label>
+                      <Input value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="e.g. Automotive, FinTech" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Preferred Work Mode</Label>
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={workModes}
+                        onChange={(e) => setWorkModes(e.target.value)}
+                      >
+                        <option value="">Any</option>
+                        <option value="On-site">On-site</option>
+                        <option value="Hybrid">Hybrid</option>
+                        <option value="Remote">Remote</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Preferred Employment Type</Label>
+                      <select
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={employmentTypes}
+                        onChange={(e) => setEmploymentTypes(e.target.value)}
+                      >
+                        <option value="">Any</option>
+                        <option value="Full-time">Full-time</option>
+                        <option value="Part-time">Part-time</option>
+                        <option value="Contract">Contract</option>
+                        <option value="Internship">Internship</option>
+                      </select>
                     </div>
                     <div className="space-y-1.5">
                       <Label>Min Salary ($)</Label>

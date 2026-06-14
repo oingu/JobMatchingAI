@@ -144,10 +144,29 @@ def _get_skill_scores(job_skills: SkillList, candidates: list[CandidateProfile])
 # ---------------------------------------------------------------------------
 
 def preference_match(profile: CandidateProfile, job: Job) -> float:
-    location_score = 1.0 if job.location.lower() in _tokenize_csv(profile.preferred_locations) else 0.0
+    pref_locs = _tokenize_csv(profile.preferred_locations)
+    location_score = 1.0 if not pref_locs or job.location.lower().strip() in pref_locs else 0.0
+    
     salary_score = 1.0 if profile.preferred_salary_min <= job.salary_max else 0.0
     level_score = 1.0 if profile.experience_level.lower() == job.experience_level.lower() else 0.5
-    return (location_score * 0.4) + (salary_score * 0.4) + (level_score * 0.2)
+    
+    pref_domains = _tokenize_csv(profile.preferred_domains)
+    domain_score = 1.0 if not pref_domains or job.domain.lower().strip() in pref_domains else 0.0
+    
+    pref_modes = _tokenize_csv(profile.preferred_work_modes)
+    work_mode_score = 1.0 if not pref_modes or job.work_mode.lower().strip() in pref_modes else 0.0
+    
+    pref_types = _tokenize_csv(profile.preferred_employment_types)
+    employment_type_score = 1.0 if not pref_types or job.employment_type.lower().strip() in pref_types else 0.0
+
+    return (
+        (location_score * 0.15) + 
+        (salary_score * 0.15) + 
+        (level_score * 0.10) +
+        (domain_score * 0.30) +
+        (work_mode_score * 0.15) +
+        (employment_type_score * 0.15)
+    )
 
 
 def compute_final_score(skill_match: float, pref_match: float, activity: float) -> float:

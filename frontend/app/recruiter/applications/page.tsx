@@ -41,6 +41,9 @@ type AppItem = {
   candidate_dob: string;
   skills: { name: string; level: number }[];
   experience_level: string;
+  domain: string;
+  work_mode: string;
+  employment_type: string;
   cover_letter: string;
   status: string;
   score: number | null;
@@ -237,6 +240,21 @@ function Content({ session }: { session: SessionData }) {
                       {app.experience_level && (
                         <Badge variant="outline" className="text-[10px] capitalize">
                           {app.experience_level}
+                        </Badge>
+                      )}
+                      {app.domain && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {app.domain}
+                        </Badge>
+                      )}
+                      {app.work_mode && (
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          {app.work_mode}
+                        </Badge>
+                      )}
+                      {app.employment_type && (
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          {app.employment_type}
                         </Badge>
                       )}
                     </div>
