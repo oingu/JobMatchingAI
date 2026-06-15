@@ -33,12 +33,14 @@ from app.models import (
 )
 from app.schemas import (
     ApplicationCreate,
+    ApplicationInvite,
     ApplicationReview,
     CandidateProfileCreate,
     EventOut,
     InteractionCreate,
     InterviewCreate,
     InterviewOut,
+    InvitationRespond,
     JobCreate,
     JobUpdate,
     LoginRequest,
@@ -516,6 +518,9 @@ def get_my_candidate_profile(
         "skills": profile.skills if isinstance(profile.skills, list) else [],
         "experience_level": profile.experience_level,
         "preferred_locations": profile.preferred_locations,
+        "preferred_domains": profile.preferred_domains,
+        "preferred_work_modes": profile.preferred_work_modes,
+        "preferred_employment_types": profile.preferred_employment_types,
         "preferred_salary_min": profile.preferred_salary_min,
         "birth_date": profile.birth_date,
         "avatar_url": profile.avatar_url,
@@ -541,7 +546,8 @@ def create_or_update_candidate_profile(
     if not user:
         raise HTTPException(status_code=404, detail="Candidate user not found.")
 
-    user.phone = payload.phone
+    if payload.phone is not None:
+        user.phone = payload.phone
 
     skills_json = [s.model_dump() for s in payload.skills]
     locations_csv = ",".join(payload.preferred_locations)
@@ -1131,16 +1137,22 @@ def list_saved_jobs(
 ) -> dict:
     """Return jobs the current candidate has saved (click interaction), newest first."""
     require_role(current_user, "candidate")
-    saved_logs = (
-        db.query(InteractionLog.job_id)
-        .filter(
-            InteractionLog.user_id == current_user.id,
-            InteractionLog.event_type == "click",
-            InteractionLog.job_id.isnot(None),
-        )
-        .distinct()
+    # Exclude jobs already applied to
+    applied_job_ids = [
+        row[0] for row in db.query(Application.job_id)
+        .filter(Application.candidate_id == current_user.id)
         .all()
+    ]
+
+    query = db.query(InteractionLog.job_id).filter(
+        InteractionLog.user_id == current_user.id,
+        InteractionLog.event_type == "click",
+        InteractionLog.job_id.isnot(None),
     )
+    if applied_job_ids:
+        query = query.filter(InteractionLog.job_id.notin_(applied_job_ids))
+        
+    saved_logs = query.distinct().all()
     saved_ids = [row[0] for row in saved_logs]
     if not saved_ids:
         return api_ok([])
@@ -1448,9 +1460,9 @@ def list_all_applications_for_recruiter(
             "candidate_dob": candidate.date_of_birth if candidate else "",
             "skills": profile.skills if profile else [],
             "experience_level": profile.experience_level if profile else "",
-            "domain": profile.domain if profile else "",
-            "work_mode": profile.work_mode if profile else "",
-            "employment_type": profile.employment_type if profile else "",
+            "domain": profile.preferred_domains if profile else "",
+            "work_mode": profile.preferred_work_modes if profile else "",
+            "employment_type": profile.preferred_employment_types if profile else "",
             "cover_letter": a.cover_letter,
             "status": a.status,
             "score": rec.final_score if rec else None,
@@ -1507,9 +1519,9 @@ def list_applicants_for_job(
             "candidate_dob": candidate.date_of_birth if candidate else "",
             "skills": profile.skills if profile else [],
             "experience_level": profile.experience_level if profile else "",
-            "domain": profile.domain if profile else "",
-            "work_mode": profile.work_mode if profile else "",
-            "employment_type": profile.employment_type if profile else "",
+            "domain": profile.preferred_domains if profile else "",
+            "work_mode": profile.preferred_work_modes if profile else "",
+            "employment_type": profile.preferred_employment_types if profile else "",
             "cover_letter": a.cover_letter,
             "status": a.status,
             "score": rec.final_score if rec else None,
@@ -1552,6 +1564,135 @@ def review_application(
         },
     )
     audit(db, action="application_reviewed", resource_type="application", resource_id=str(application_id), actor_user_id=current_user.id, detail={"new_status": payload.status})
+    return api_ok({"application_id": app_obj.id, "status": app_obj.status})
+
+
+@app.get("/recommendations/discover")
+def discover_candidates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_role(current_user, "recruiter")
+    jobs = db.query(Job).filter(Job.recruiter_id == current_user.id).all()
+    if not jobs:
+        return api_ok([])
+    job_ids = [j.id for j in jobs]
+    
+    recommendations = db.query(Recommendation).filter(
+        Recommendation.job_id.in_(job_ids),
+        Recommendation.final_score >= 0.70
+    ).all()
+    
+    result = []
+    for rec in recommendations:
+        existing_app = db.query(Application).filter(
+            Application.job_id == rec.job_id,
+            Application.candidate_id == rec.candidate_id
+        ).first()
+        if existing_app:
+            continue
+            
+        candidate_user = db.query(User).filter(User.id == rec.candidate_id).first()
+        profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == rec.candidate_id).first()
+        job = next((j for j in jobs if j.id == rec.job_id), None)
+        
+        if candidate_user and profile and job:
+            result.append({
+                "job_id": job.id,
+                "job_title": job.title,
+                "candidate_id": candidate_user.id,
+                "candidate_name": candidate_user.name,
+                "skills": profile.skills if isinstance(profile.skills, list) else [],
+                "experience_level": profile.experience_level,
+                "domain": profile.preferred_domains,
+                "work_mode": profile.preferred_work_modes,
+                "score": rec.final_score,
+            })
+    
+    result.sort(key=lambda x: x["score"], reverse=True)
+    return api_ok(result)
+
+
+@app.post("/applications/invite")
+def invite_candidate(
+    payload: ApplicationInvite,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_role(current_user, "recruiter")
+    job = db.query(Job).filter(Job.id == payload.job_id, Job.recruiter_id == current_user.id).first()
+    if not job:
+        raise HTTPException(status_code=403, detail="Not your job posting.")
+        
+    existing_app = db.query(Application).filter(
+        Application.job_id == payload.job_id,
+        Application.candidate_id == payload.candidate_id
+    ).first()
+    if existing_app:
+        raise HTTPException(status_code=400, detail="Candidate already applied or was invited.")
+        
+    app_obj = Application(
+        candidate_id=payload.candidate_id,
+        job_id=payload.job_id,
+        status="INVITED"
+    )
+    db.add(app_obj)
+    db.commit()
+    db.refresh(app_obj)
+    
+    db.add(Notification(
+        user_id=payload.candidate_id,
+        title=f"New Job Invitation: {job.title}",
+        body=f"You have been invited to apply for the position by {current_user.name}.",
+    ))
+    db.commit()
+    
+    candidate_user = db.query(User).filter(User.id == payload.candidate_id).first()
+    if candidate_user and candidate_user.email:
+        subject = f"[JobMatch AI] Invitation to apply for {job.title}"
+        text_content = f"Hi {candidate_user.name},\n\nYou have been invited by {current_user.name} to apply for the position of {job.title}.\nPlease log in to JobMatch AI to review the invitation and accept or decline.\n\nBest,\nJobMatch AI Team"
+        html_content = f"<p>Hi <b>{candidate_user.name}</b>,</p><p>You have been invited by <b>{current_user.name}</b> to apply for the position of <b>{job.title}</b>.</p><p>Please log in to JobMatch AI to review the invitation and accept or decline.</p><p>Best,<br>JobMatch AI Team</p>"
+        from app.utils.email import send_email
+        send_email(candidate_user.email, subject, text_content, html_content)
+    return api_ok({"application_id": app_obj.id, "status": app_obj.status})
+
+
+@app.post("/applications/{application_id}/respond")
+def respond_to_invitation(
+    application_id: int,
+    payload: InvitationRespond,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_role(current_user, "candidate")
+    app_obj = db.query(Application).filter(Application.id == application_id, Application.candidate_id == current_user.id).first()
+    if not app_obj:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    if app_obj.status != "INVITED":
+        raise HTTPException(status_code=400, detail="Application is not an invitation.")
+        
+    job = db.query(Job).filter(Job.id == app_obj.job_id).first()
+    
+    if payload.action == "ACCEPT":
+        app_obj.status = "PENDING"
+        if job:
+            db.add(Notification(
+                user_id=job.recruiter_id,
+                title="Invitation Accepted",
+                body=f"Candidate {current_user.name} has accepted your invitation for {job.title}.",
+            ))
+    else:
+        app_obj.status = "WITHDRAWN"
+        if job:
+            db.add(Notification(
+                user_id=job.recruiter_id,
+                title="Invitation Declined",
+                body=f"Candidate {current_user.name} has declined your invitation for {job.title}.",
+            ))
+            
+    app_obj.updated_at = now_utc()
+    db.commit()
+    db.refresh(app_obj)
     return api_ok({"application_id": app_obj.id, "status": app_obj.status})
 
 
@@ -1907,6 +2048,7 @@ def recruiter_dashboard(
     job_id: int | None = None,
     top_k: int = 20,
     min_score: float | None = None,
+    filter_status: str = "unapplied",
     offset: int = 0,
     limit: int = 10,
     db: Session = Depends(get_db),
@@ -1928,6 +2070,14 @@ def recruiter_dashboard(
         recommendations = rec_query.order_by(desc(Recommendation.final_score)).limit(effective_top_k).all()
         rec_items = []
         for row in recommendations:
+            if filter_status == "unapplied":
+                existing_app = db.query(Application).filter(
+                    Application.job_id == job.id,
+                    Application.candidate_id == row.candidate_id
+                ).first()
+                if existing_app:
+                    continue
+
             cand_user = db.query(User).filter(User.id == row.candidate_id).first()
             cand_profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == row.candidate_id).first()
             rec_items.append({

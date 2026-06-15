@@ -16,6 +16,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type Rec = {
   candidate_id: number;
@@ -46,10 +47,12 @@ export default function RecruiterDashboardPage() {
 }
 
 function RecruiterDashboardContent({ session }: { session: SessionData }) {
+  const { t } = useLanguage();
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [topK, setTopK] = useState(20);
+  const [filterStatus, setFilterStatus] = useState<"all" | "unapplied">("unapplied");
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<{ jobTitle: string; rec: Rec } | null>(null);
 
@@ -58,7 +61,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
     setLoading(true);
     try {
       const res = await apiRequest<{ recruiter_id: number; jobs: DashboardRow[] }>(
-        `/dashboard/recruiter/${session.userId}?limit=20&top_k=${topK}`,
+        `/dashboard/recruiter/${session.userId}?limit=20&top_k=${topK}&filter_status=${filterStatus}`,
         { session },
       );
       setRows(res.data.jobs);
@@ -72,7 +75,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
   useEffect(() => {
     void loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topK]);
+  }, [topK, filterStatus]);
 
   function openCandidateDetail(jobTitle: string, rec: Rec) {
     setSelected({ jobTitle, rec });
@@ -80,13 +83,13 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
   }
 
   return (
-    <AppShell role="recruiter" title="Dashboard">
+    <AppShell role="recruiter" title={t("recruiter.dashboard.title")}>
       <div className="space-y-6">
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Jobs</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t("recruiter.dashboard.total_jobs")}</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -95,7 +98,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Matches</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t("recruiter.dashboard.total_matches")}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
@@ -105,7 +108,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Avg Score</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">{t("recruiter.dashboard.avg_score")}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
@@ -120,19 +123,37 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
 
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            Display top matching candidates per job
+            {t("recruiter.dashboard.display_top")}
           </p>
-          <div className="flex flex-wrap gap-2">
-            {[5, 10, 20, 50].map((k) => (
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2 border-r pr-4">
               <Button
-                key={k}
                 size="sm"
-                variant={topK === k ? "default" : "outline"}
-                onClick={() => setTopK(k)}
+                variant={filterStatus === "unapplied" ? "default" : "outline"}
+                onClick={() => setFilterStatus("unapplied")}
               >
-                Top {k}
+                {t("recruiter.dashboard.unapplied")}
               </Button>
-            ))}
+              <Button
+                size="sm"
+                variant={filterStatus === "all" ? "default" : "outline"}
+                onClick={() => setFilterStatus("all")}
+              >
+                {t("recruiter.dashboard.all")}
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[5, 10, 20, 50].map((k) => (
+                <Button
+                  key={k}
+                  size="sm"
+                  variant={topK === k ? "default" : "outline"}
+                  onClick={() => setTopK(k)}
+                >
+                  Top {k}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -145,8 +166,8 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
         ) : rows.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <p className="text-sm font-medium text-muted-foreground">No jobs posted yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">Post your first job to start receiving candidate matches.</p>
+              <p className="text-sm font-medium text-muted-foreground">{t("recruiter.dashboard.no_jobs")}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("recruiter.dashboard.post_first")}</p>
             </CardContent>
           </Card>
         ) : (
@@ -168,11 +189,11 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-12">#</TableHead>
-                        <TableHead>Candidate</TableHead>
-                        <TableHead>Skills</TableHead>
-                        <TableHead>Skill</TableHead>
-                        <TableHead>Pref</TableHead>
-                        <TableHead className="text-right">Score</TableHead>
+                        <TableHead>{t("recruiter.dashboard.candidate")}</TableHead>
+                        <TableHead>{t("recruiter.dashboard.skills")}</TableHead>
+                        <TableHead>{t("recruiter.dashboard.skill")}</TableHead>
+                        <TableHead>{t("recruiter.dashboard.pref")}</TableHead>
+                        <TableHead className="text-right">{t("recruiter.dashboard.score")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

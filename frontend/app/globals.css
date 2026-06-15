@@ -127,6 +127,7 @@
   }
   html {
     @apply font-sans;
+    font-size: 106.25%; /* 17px base size instead of 16px */
   }
 }
 

@@ -39,7 +39,7 @@ class CandidateProfileCreate(BaseModel):
     preferred_employment_types: str = ""
     preferred_salary_min: int = Field(ge=0)
     birth_date: str = Field(min_length=4)
-    phone: str = Field(default="")
+    phone: str | None = None
 
 
 class RecruiterProfileCreate(BaseModel):
@@ -172,3 +172,12 @@ class MessageOut(BaseModel):
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class ApplicationInvite(BaseModel):
+    job_id: int
+    candidate_id: int
+
+
+class InvitationRespond(BaseModel):
+    action: Literal["ACCEPT", "DECLINE"]

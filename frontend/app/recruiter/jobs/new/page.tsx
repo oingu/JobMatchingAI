@@ -24,6 +24,7 @@ import {
   Card,
   CardContent,
 } from "@/components/ui/card";
+import { VIETNAM_PROVINCES } from "@/lib/constants";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -718,7 +719,7 @@ function CreateJobForm({
   const [title, setTitle] = useState("");
   const [briefDescription, setBriefDescription] = useState("");
   const [skills, setSkills] = useState<SkillEntry[]>([]);
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState("Hà Nội");
   const [salaryMin, setSalaryMin] = useState(0);
   const [salaryMax, setSalaryMax] = useState(0);
   const [experienceLevel, setExperienceLevel] = useState("junior");
@@ -800,13 +801,19 @@ function CreateJobForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="location">Location *</Label>
-          <Input
+          <select
             id="location"
-            placeholder="e.g. Hanoi, Remote"
+            className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             required
-          />
+          >
+            {VIETNAM_PROVINCES.map((prov) => (
+              <option key={prov} value={prov}>
+                {prov}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="brief-description">Brief Description</Label>
@@ -1118,13 +1125,19 @@ function EditJobForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="edit-location">Location *</Label>
-          <Input
+          <select
             id="edit-location"
-            placeholder="e.g. Hanoi, Remote"
+            className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             required
-          />
+          >
+            {VIETNAM_PROVINCES.map((prov) => (
+              <option key={prov} value={prov}>
+                {prov}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="edit-brief-description">Brief Description</Label>

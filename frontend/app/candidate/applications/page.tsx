@@ -20,6 +20,7 @@ import {
   Users,
   Layers,
   Monitor,
+  Send,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -43,6 +44,7 @@ import {
 import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type ApplicationItem = {
   id: number;
@@ -108,6 +110,11 @@ const STATUS_CONFIG: Record<
     icon: <AlertCircle className="h-3.5 w-3.5" />,
     variant: "outline",
   },
+  INVITED: {
+    label: "Invited",
+    icon: <Send className="h-3.5 w-3.5" />,
+    variant: "default",
+  },
 };
 
 export default function MyApplicationsPage() {
@@ -119,6 +126,7 @@ export default function MyApplicationsPage() {
 }
 
 function ApplicationsContent({ session }: { session: SessionData }) {
+  const { t } = useLanguage();
   const { success: toastSuccess, error: toastError } = useToast();
   const [apps, setApps] = useState<ApplicationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,6 +173,22 @@ function ApplicationsContent({ session }: { session: SessionData }) {
     }
   }
 
+  async function respondToInvitation(appId: number, action: "ACCEPT" | "DECLINE") {
+    try {
+      await apiRequest(`/applications/${appId}/respond`, {
+        method: "POST",
+        session,
+        body: { action }
+      });
+      toastSuccess(action === "ACCEPT" ? "Invitation accepted! Application is now pending." : "Invitation declined.");
+      setApps((prev) =>
+        prev.map((a) => (a.id === appId ? { ...a, status: action === "ACCEPT" ? "PENDING" : "WITHDRAWN" } : a)),
+      );
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Failed to respond.");
+    }
+  }
+
   async function openDetail(app: ApplicationItem) {
     setDetailApp(app);
     setDetailOpen(true);
@@ -182,20 +206,22 @@ function ApplicationsContent({ session }: { session: SessionData }) {
   const pending = apps.filter((a) => a.status === "PENDING");
   const accepted = apps.filter((a) => a.status === "ACCEPTED");
   const rejected = apps.filter((a) => a.status === "REJECTED");
+  const invited = apps.filter((a) => a.status === "INVITED");
 
   return (
-    <AppShell role="candidate" title="My Applications">
+    <AppShell role="candidate" title={t("candidate.apps.title")}>
       {/* Stats */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total" value={apps.length} />
-        <StatCard label="Pending" value={pending.length} />
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <StatCard label={t("candidate.apps.total")} value={apps.length} />
+        <StatCard label={t("candidate.apps.invited")} value={invited.length} className="text-indigo-600" />
+        <StatCard label={t("candidate.apps.pending")} value={pending.length} />
         <StatCard
-          label="Accepted"
+          label={t("candidate.apps.accepted")}
           value={accepted.length}
           className="text-green-600"
         />
         <StatCard
-          label="Rejected"
+          label={t("candidate.apps.rejected")}
           value={rejected.length}
           className="text-red-500"
         />
@@ -203,12 +229,12 @@ function ApplicationsContent({ session }: { session: SessionData }) {
 
       {loading ? (
         <p className="text-center text-sm text-muted-foreground py-12">
-          Loading applications…
+          {t("ui.loading")}
         </p>
       ) : apps.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-16 text-muted-foreground">
           <Briefcase className="h-10 w-10 opacity-40" />
-          <p className="text-sm">You haven&apos;t applied to any jobs yet.</p>
+          <p className="text-sm">{t("candidate.apps.no_apps")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -263,16 +289,16 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                         className="gap-1 text-xs"
                         onClick={() => void openDetail(app)}
                       >
-                        <Eye className="h-3 w-3" /> View Details
+                        <Eye className="h-3 w-3" /> {t("ui.view_details")}
                       </Button>
                       {app.score !== null && (
                         <Badge variant="outline" className="text-[10px]">
-                          Match: {(app.score * 100).toFixed(0)}%
+                          {t("candidate.apps.match")}: {(app.score * 100).toFixed(0)}%
                         </Badge>
                       )}
                       {app.created_at && (
                         <span className="text-[10px] text-muted-foreground">
-                          Applied{" "}
+                          {t("candidate.apps.applied_on")}{" "}
                           {new Date(app.created_at).toLocaleDateString()}
                         </span>
                       )}
@@ -283,8 +309,28 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                           className="gap-1 text-xs text-muted-foreground hover:text-destructive"
                           onClick={() => withdraw(app.id)}
                         >
-                          <Undo2 className="h-3 w-3" /> Withdraw
+                          <Undo2 className="h-3 w-3" /> {t("candidate.apps.withdraw")}
                         </Button>
+                      )}
+                      {app.status === "INVITED" && (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="gap-1 text-xs bg-indigo-600 hover:bg-indigo-700"
+                            onClick={() => respondToInvitation(app.id, "ACCEPT")}
+                          >
+                            <CheckCircle2 className="h-3 w-3" /> {t("candidate.apps.accept_invite")}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 text-xs text-muted-foreground hover:text-destructive"
+                            onClick={() => respondToInvitation(app.id, "DECLINE")}
+                          >
+                            <XCircle className="h-3 w-3" /> {t("candidate.apps.decline_invite")}
+                          </Button>
+                        </div>
                       )}
                       {["ACCEPTED", "INTERVIEWING"].includes(app.status) && (
                         <Button
@@ -293,7 +339,7 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                           className="gap-1 text-xs bg-primary/10 text-primary hover:bg-primary/20 relative"
                           onClick={() => setChatAppId(app.id)}
                         >
-                          <MessageCircle className="h-3 w-3" /> Chat
+                          <MessageCircle className="h-3 w-3" /> {t("candidate.apps.chat")}
                           {app.unread_messages_count > 0 && (
                             <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm">
                               {app.unread_messages_count}

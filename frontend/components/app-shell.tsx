@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageToggle } from "@/components/language-toggle";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -93,6 +95,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const links = role === "admin" ? adminNav : role === "recruiter" ? recruiterNav : candidateNav;
   const session = useSyncExternalStore(subscribeSession, getSession, () => null);
   const userName = session?.name ?? "";
@@ -236,7 +239,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       {/* Sidebar */}
       <aside className="sticky top-0 flex h-screen w-60 flex-col border-r border-border/80 bg-background/50 backdrop-blur-md select-none">
-        <div className="flex items-center gap-2.5 px-5 py-5">
+        <div className="relative flex h-16 shrink-0 items-center gap-2.5 px-5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-card border border-border shadow-inner">
             <Zap className="h-4 w-4 text-emerald-500 fill-emerald-500/10" />
           </div>
@@ -244,13 +247,13 @@ export function AppShell({ role, title, children }: AppShellProps) {
             <p className="text-sm font-bold tracking-tight text-foreground">JobMatch AI</p>
             <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Matching Engine</p>
           </div>
+          {/* The line */}
+          <div className="absolute bottom-0 left-5 right-5 h-[1px] bg-border/80" />
         </div>
-
-        <div className="h-[1px] bg-border/80 mx-5" />
 
         <ScrollArea className="flex-1 px-3 py-4">
           <p className="mb-2.5 px-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/80">
-            {role === "recruiter" ? "Recruiter console" : "Candidate portal"}
+            {role === "recruiter" ? t("role.recruiter") : role === "candidate" ? t("role.candidate") : t("role.admin")}
           </p>
           <nav className="space-y-1">
             {links.map((item) => {
@@ -269,7 +272,19 @@ export function AppShell({ role, title, children }: AppShellProps) {
                   <span className={cn("transition-colors", active ? "text-emerald-500" : "text-muted-foreground")}>
                     {item.icon}
                   </span>
-                  <span>{item.label}</span>
+                  <span>
+                    {/* Map English labels to keys manually or just use a generic mapping if possible,
+                        but to be safe I will map them inline or let's assume we use keys in labels?
+                        Wait, nav labels are hardcoded in the array above. Let's use a mapping function. 
+                        Actually, let's map them by their English label. */}
+                    {item.label === "Dashboard" ? t("nav.dashboard") :
+                     item.label === "Jobs" ? t("nav.jobs") :
+                     item.label === "Applications" || item.label === "My Applications" ? t("nav.applications") :
+                     item.label === "Messages" ? t("nav.messages") :
+                     item.label === "Profile" || item.label === "My Profile" ? t("nav.profile") :
+                     item.label === "Job Feed" ? t("nav.feed") :
+                     item.label}
+                  </span>
                   {(item.label === "My Applications" || item.label === "Applications") && unreadCount > 0 && (
                     <span className="ml-auto flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm">
                       {unreadCount}
@@ -292,21 +307,23 @@ export function AppShell({ role, title, children }: AppShellProps) {
 
       {/* Main content */}
       <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background">
-        <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border/80 bg-background/80 px-6 py-4 backdrop-blur-md">
-          <div className="flex items-center gap-2.5">
-            {links.find((l) => l.href === pathname)?.icon || <Briefcase className="h-4 w-4 text-muted-foreground" />}
-            <h1 className="text-sm font-semibold tracking-tight text-foreground">{title}</h1>
-          </div>
+        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border/80 bg-background/80 px-6 backdrop-blur-md">
           <div className="flex items-center gap-3">
+            {links.find((l) => l.href === pathname)?.icon || <Briefcase className="h-5 w-5 text-muted-foreground" />}
+            {/* The title prop is passed from pages, which we will translate in pages directly */}
+            <h1 className="text-base font-semibold tracking-tight text-foreground">{title}</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <LanguageToggle />
             <ThemeToggle />
-            <Badge variant="outline" className="capitalize text-[10px] font-mono text-muted-foreground border-border bg-muted/30 px-2 py-0.5">
-              {role}
+            <Badge variant="outline" className="capitalize text-xs font-mono text-muted-foreground border-border bg-muted/30 px-2.5 py-0.5">
+              {role === "recruiter" ? t("role.recruiter") : role === "candidate" ? t("role.candidate") : t("role.admin")}
             </Badge>
             {userName && (
               <DropdownMenu>
                 <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-full outline-none focus-visible:ring-1 focus-visible:ring-emerald-500/50 cursor-pointer">
-                  <span className="text-xs font-semibold text-foreground/90 hover:text-foreground transition-colors hidden sm:inline">{userName}</span>
-                  <Avatar className="h-7 w-7 border border-border">
+                  <span className="text-sm font-semibold text-foreground/90 hover:text-foreground transition-colors hidden sm:inline">{userName}</span>
+                  <Avatar className="h-9 w-9 border border-border">
                     {avatarUrl && (
                       <AvatarImage src={avatarUrl} alt={userName} className="object-cover" />
                     )}
@@ -315,42 +332,58 @@ export function AppShell({ role, title, children }: AppShellProps) {
                     </AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-popover border-border text-popover-foreground">
+                  <DropdownMenuContent align="end" className="w-56 bg-popover border-border text-popover-foreground">
                   <DropdownMenuGroup>
                     <DropdownMenuLabel>
-                      <p className="text-xs font-bold text-foreground">{userName}</p>
-                      <p className="text-[10px] font-mono text-muted-foreground mt-0.5">{session?.email}</p>
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{userName}</p>
+                        <p className="text-[11px] leading-none text-muted-foreground capitalize">
+                          {role === "recruiter" ? t("role.recruiter") : role === "candidate" ? t("role.candidate") : t("role.admin")}
+                        </p>
+                      </div>
                     </DropdownMenuLabel>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator className="bg-border" />
-                  <DropdownMenuGroup>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="gap-2 cursor-pointer text-xs focus:bg-accent focus:text-accent-foreground hover:bg-accent"
-                      onClick={() => {
-                        const dest = role === "admin" ? "/admin/settings" : role === "recruiter" ? "/recruiter/settings" : "/candidate/settings";
-                        router.push(dest);
+                      className="cursor-pointer text-xs font-medium"
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        router.push(`/${role}/profile`);
                       }}
                     >
-                      <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+                      <User className="mr-2 h-3.5 w-3.5" />
+                      {t("nav.profile")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="cursor-pointer text-xs font-medium"
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        router.push(`/${role}/settings`);
+                      }}
+                    >
+                      <Settings className="mr-2 h-3.5 w-3.5" />
                       Settings
                     </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator className="bg-border" />
-                  <DropdownMenuGroup>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="gap-2 cursor-pointer text-xs focus:bg-accent focus:text-accent-foreground hover:bg-accent"
-                      onClick={() => {
+                      onSelect={(e) => {
+                        e.preventDefault();
                         clearSession();
                         router.replace("/login");
                       }}
                     >
-                      <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
-                      Log out
+                      <LogOut className="mr-2 h-3.5 w-3.5" />
+                      {t("ui.logout")}
                     </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator className="bg-border" />
+                  <DropdownMenuGroup>
                     {role !== "admin" && (
                       <DropdownMenuItem
                         className="gap-2 cursor-pointer text-xs text-destructive focus:text-destructive focus:bg-destructive/20 hover:bg-destructive/10"
-                        onClick={() => setDeleteDialogOpen(true)}
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          setDeleteDialogOpen(true);
+                        }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         Delete Account
@@ -385,6 +418,7 @@ function DeleteAccountDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
+  const { t } = useLanguage();
   const { success: toastSuccess, error: toastError } = useToast();
   const [deleting, setDeleting] = useState(false);
 
@@ -404,21 +438,21 @@ function DeleteAccountDialog({
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete your account?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This action is permanent and cannot be undone. All your data including
-            profile, jobs, recommendations, and notifications will be permanently removed.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleDelete}
-            disabled={deleting}
-            className="bg-destructive text-white hover:bg-destructive/90"
-          >
-            {deleting ? "Deleting…" : "Yes, delete my account"}
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action is permanent and cannot be undone. All your data including
+              profile, jobs, recommendations, and notifications will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("ui.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting…" : "Yes, delete my account"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

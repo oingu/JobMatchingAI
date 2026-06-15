@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VIETNAM_PROVINCES } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -519,7 +520,20 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
                     </div>
                     <div className="space-y-1.5">
                       <Label>Preferred Locations</Label>
-                      <Input value={locations} onChange={(e) => setLocations(e.target.value)} placeholder="e.g. hanoi, remote" />
+                      <select
+                        multiple
+                        className="flex h-28 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={locations.split(',').map(s => s.trim()).filter(Boolean)}
+                        onChange={(e) => {
+                          const selected = Array.from(e.target.selectedOptions, option => option.value);
+                          setLocations(selected.join(', '));
+                        }}
+                      >
+                        {VIETNAM_PROVINCES.map((prov) => (
+                          <option key={prov} value={prov}>{prov}</option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-muted-foreground">Hold Cmd/Ctrl to select multiple.</p>
                     </div>
                     <div className="space-y-1.5">
                       <Label>Preferred Domains / Industries</Label>

@@ -4,6 +4,7 @@ import { Geist_Mono } from "next/font/google";
 import { ViewTransitions } from 'next-view-transitions';
 import { ToastProvider } from "@/components/toast";
 import { ThemeProvider } from "@/components/theme-provider";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,7 +32,9 @@ export default function RootLayout({
       <html lang="en" className={`${inter.variable} ${geistMono.variable}`} suppressHydrationWarning>
         <body className="min-h-screen bg-background font-sans antialiased">
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-            <ToastProvider>{children}</ToastProvider>
+            <LanguageProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </LanguageProvider>
           </ThemeProvider>
         </body>
       </html>

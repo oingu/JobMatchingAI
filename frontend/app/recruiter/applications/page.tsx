@@ -14,6 +14,8 @@ import {
   Calendar,
   CalendarDays,
   MessageCircle,
+  Sparkles,
+  Send,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -60,9 +62,11 @@ const STATUS_CFG: Record<
   INTERVIEWING: { label: "Interviewing", icon: <CalendarDays className="h-3.5 w-3.5" />, variant: "default" },
   REJECTED: { label: "Rejected", icon: <XCircle className="h-3.5 w-3.5" />, variant: "destructive" },
   WITHDRAWN: { label: "Withdrawn", icon: <AlertCircle className="h-3.5 w-3.5" />, variant: "outline" },
+  INVITED: { label: "Invited", icon: <Send className="h-3.5 w-3.5" />, variant: "outline" },
+  DISCOVER: { label: "Recommended", icon: <Sparkles className="h-3.5 w-3.5" />, variant: "secondary" },
 };
 
-type FilterStatus = "ALL" | "PENDING" | "ACCEPTED" | "INTERVIEWING" | "REJECTED" | "WITHDRAWN";
+type FilterStatus = "ALL" | "PENDING" | "ACCEPTED" | "INTERVIEWING" | "REJECTED" | "WITHDRAWN" | "INVITED" | "DISCOVER";
 
 export default function RecruiterApplicationsPage() {
   return (
@@ -89,8 +93,33 @@ function Content({ session }: { session: SessionData }) {
 
   async function load() {
     try {
-      const res = await apiRequest<AppItem[]>("/applications/all", { session });
-      setApps(res.data);
+      const [appsRes, discoverRes] = await Promise.all([
+        apiRequest<AppItem[]>("/applications/all", { session }),
+        apiRequest<any[]>("/recommendations/discover", { session }).catch(() => ({ data: [] }))
+      ]);
+      
+      const discoverApps: AppItem[] = discoverRes.data.map((d: any, idx: number) => ({
+        id: -(idx + 1), // fake ID for key
+        job_id: d.job_id,
+        job_title: d.job_title,
+        candidate_id: d.candidate_id,
+        candidate_name: d.candidate_name,
+        candidate_email: "",
+        candidate_phone: "",
+        candidate_dob: "",
+        skills: d.skills || [],
+        experience_level: d.experience_level || "",
+        domain: d.domain || "",
+        work_mode: d.work_mode || "",
+        employment_type: "",
+        cover_letter: "",
+        status: "DISCOVER",
+        score: d.score,
+        unread_messages_count: 0,
+        created_at: null,
+      }));
+
+      setApps([...appsRes.data, ...discoverApps]);
     } catch {
       /* ignore */
     } finally {
@@ -120,6 +149,21 @@ function Content({ session }: { session: SessionData }) {
       toastError(err instanceof Error ? err.message : "Review failed.");
     }
   }
+
+  async function inviteCandidate(jobId: number, candidateId: number) {
+    try {
+      await apiRequest("/applications/invite", {
+        method: "POST",
+        session,
+        body: { job_id: jobId, candidate_id: candidateId },
+      });
+      toastSuccess("Invitation sent!");
+      void load();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Failed to invite candidate.");
+    }
+  }
+
   async function scheduleInterview() {
     if (!schedulingApp || !interviewData.date || !interviewData.time || !interviewData.location_details) {
       toastError("Please fill in all required fields.");
@@ -153,12 +197,14 @@ function Content({ session }: { session: SessionData }) {
   const rejected = apps.filter((a) => a.status === "REJECTED").length;
 
   const filters: { key: FilterStatus; label: string; count?: number }[] = [
-    { key: "ALL", label: "All", count: apps.length },
+    { key: "ALL", label: "All", count: apps.filter((a) => a.status !== "DISCOVER").length },
     { key: "PENDING", label: "Pending", count: pending },
     { key: "ACCEPTED", label: "Accepted", count: accepted },
     { key: "INTERVIEWING", label: "Interviewing", count: interviewing },
+    { key: "INVITED", label: "Invited", count: apps.filter((a) => a.status === "INVITED").length },
     { key: "REJECTED", label: "Rejected", count: rejected },
     { key: "WITHDRAWN", label: "Withdrawn" },
+    { key: "DISCOVER", label: "Discover", count: apps.filter((a) => a.status === "DISCOVER").length },
   ];
 
   return (
@@ -303,6 +349,15 @@ function Content({ session }: { session: SessionData }) {
                             <XCircle className="h-3.5 w-3.5" /> Reject
                           </Button>
                         </div>
+                      )}
+                      {app.status === "DISCOVER" && (
+                        <Button
+                          size="sm"
+                          className="gap-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                          onClick={() => inviteCandidate(app.job_id, app.candidate_id)}
+                        >
+                          <Send className="h-3.5 w-3.5" /> Invite to Apply
+                        </Button>
                       )}
                       {(app.status === "ACCEPTED" || app.status === "INTERVIEWING") && (
                         <div className="flex gap-2">
