@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import Link from "next/link";
 import { Plus, Trash2, Upload, AlertTriangle, BrainCircuit, Sparkles } from "lucide-react";
 
@@ -290,6 +290,35 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
     }
   }
 
+  // Compute profile strength and suggestions
+  const { strength, suggestions } = useMemo(() => {
+    let score = 0;
+    const suggs: string[] = [];
+
+    // Basic fields (10% each)
+    if (birthDate) score += 10; else suggs.push("💡 Add your Date of Birth to help recruiters filter candidates better.");
+    if (locations) score += 10; else suggs.push("💡 Add Preferred Locations so we can find jobs near you.");
+    if (domains) score += 10; else suggs.push("💡 Specify Preferred Domains/Industries to get more relevant matches.");
+    
+    // Skills (up to 30%)
+    if (skills.length >= 3) {
+      score += 30;
+    } else if (skills.length > 0) {
+      score += 15;
+      suggs.push(`💡 Add ${3 - skills.length} more technical skill(s) to increase your chance of being noticed by recruiters!`);
+    } else {
+      suggs.push("💡 Add at least 3 skills so recruiters know what you are good at.");
+    }
+
+    // Public profile fields (40%)
+    if (avatarUrl) score += 10; else suggs.push("💡 Upload a professional Avatar to make your profile stand out.");
+    if (bio && bio.length >= 20) score += 10; else suggs.push("💡 Write a brief Bio (at least 20 chars) to introduce yourself.");
+    if (educationText) score += 10; else suggs.push("💡 Add your Education history to build trust.");
+    if (experienceText) score += 10; else suggs.push("💡 Detail your past Experience. If you are a fresher, add personal projects!");
+
+    return { strength: score, suggestions: suggs };
+  }, [birthDate, locations, domains, skills, avatarUrl, bio, educationText, experienceText]);
+
   if (!profileLoaded) {
     return (
       <AppShell role="candidate" title="My Profile">
@@ -304,11 +333,74 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
     <AppShell role="candidate" title="My Profile">
       <div className="space-y-4">
         {/* Top bar */}
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold">My Profile</h2>
           <Button asChild variant="outline">
             <Link href={`/candidate/public/${session.userId}`}>View as Public</Link>
           </Button>
         </div>
+
+        {/* Profile Strength Gamification */}
+        <Card className="bg-gradient-to-r from-indigo-500/10 via-background to-purple-500/10 border-indigo-500/20 shadow-sm relative overflow-hidden group">
+          <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none group-hover:from-indigo-500/20 transition-colors duration-500" />
+          <CardContent className="p-4 relative z-10 flex flex-col sm:flex-row items-center gap-5">
+            {/* Circular Progress */}
+            <div className="relative flex items-center justify-center h-20 w-20 shrink-0">
+              <svg className="h-20 w-20 -rotate-90 transform drop-shadow-md" viewBox="0 0 100 100">
+                <circle
+                  className="text-muted-foreground/20"
+                  strokeWidth="8"
+                  stroke="currentColor"
+                  fill="transparent"
+                  r="40"
+                  cx="50"
+                  cy="50"
+                />
+                <circle
+                  className={cn(
+                    "transition-all duration-1000 ease-out",
+                    strength >= 80 ? "text-emerald-500" : strength >= 50 ? "text-indigo-500" : "text-amber-500"
+                  )}
+                  strokeWidth="8"
+                  strokeDasharray={40 * 2 * Math.PI}
+                  strokeDashoffset={40 * 2 * Math.PI - (strength / 100) * 40 * 2 * Math.PI}
+                  strokeLinecap="round"
+                  stroke="currentColor"
+                  fill="transparent"
+                  r="40"
+                  cx="50"
+                  cy="50"
+                />
+              </svg>
+              <div className="absolute flex flex-col items-center justify-center">
+                <span className="text-lg font-bold text-foreground">{strength}%</span>
+              </div>
+            </div>
+
+            {/* Content & Suggestions */}
+            <div className="flex-1 space-y-1.5 text-center sm:text-left w-full">
+              <h3 className="text-base font-bold text-foreground flex items-center justify-center sm:justify-start gap-2">
+                Profile Strength
+                {strength === 100 && <Sparkles className="h-5 w-5 text-yellow-500 animate-pulse drop-shadow-sm" />}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {strength >= 80 
+                  ? "Your profile looks amazing! You have a very high chance of getting matched with top companies." 
+                  : "Complete your profile to unlock better job matches and get noticed by recruiters."}
+              </p>
+              
+              {suggestions.length > 0 && (
+                <div className="mt-2.5 flex flex-wrap justify-center sm:justify-start gap-2">
+                  {suggestions.slice(0, 2).map((sugg, idx) => (
+                    <div key={idx} className="flex items-start text-left gap-1.5 text-[11px] font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1.5 rounded-md max-w-[400px]">
+                      <span>{sugg}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Two-column layout */}
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
@@ -667,3 +759,6 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
     </AppShell>
   );
 }
+
+// Add cn utility directly here if missing, otherwise use the imported one.
+import { cn } from "@/lib/utils";

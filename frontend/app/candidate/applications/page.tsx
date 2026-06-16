@@ -21,6 +21,7 @@ import {
   Layers,
   Monitor,
   Send,
+  ArrowRight,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -45,6 +46,7 @@ import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { cn } from "@/lib/utils";
 
 type ApplicationItem = {
   id: number;
@@ -129,6 +131,7 @@ function ApplicationsContent({ session }: { session: SessionData }) {
   const { t } = useLanguage();
   const { success: toastSuccess, error: toastError } = useToast();
   const [apps, setApps] = useState<ApplicationItem[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [loading, setLoading] = useState(true);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailJob, setDetailJob] = useState<JobDetail | null>(null);
@@ -208,6 +211,8 @@ function ApplicationsContent({ session }: { session: SessionData }) {
   const rejected = apps.filter((a) => a.status === "REJECTED");
   const invited = apps.filter((a) => a.status === "INVITED");
 
+  const filteredApps = apps.filter((a) => statusFilter === "ALL" || a.status === statusFilter);
+
   return (
     <AppShell role="candidate" title={t("candidate.apps.title")}>
       {/* Stats */}
@@ -237,47 +242,105 @@ function ApplicationsContent({ session }: { session: SessionData }) {
           <p className="text-sm">{t("candidate.apps.no_apps")}</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {apps.map((app) => {
+        <>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <Button
+              variant={statusFilter === "ALL" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("ALL")}
+              className="text-xs h-8"
+            >
+              All
+            </Button>
+            {["INVITED", "PENDING", "INTERVIEWING", "ACCEPTED", "REJECTED", "WITHDRAWN"].map((status) => (
+              <Button
+                key={status}
+                variant={statusFilter === status ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter(status)}
+                className="text-xs h-8"
+              >
+                {STATUS_CONFIG[status]?.label || status}
+              </Button>
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            {filteredApps.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
+                No applications found for the selected status.
+              </div>
+            ) : (
+              filteredApps.map((app) => {
             const cfg = STATUS_CONFIG[app.status] ?? STATUS_CONFIG.PENDING;
+            const isPremium = app.status === "INVITED" || (app.score !== null && app.score >= 0.9);
+
             return (
-              <Card key={app.id}>
-                <CardContent className="flex items-start gap-4 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Briefcase className="h-5 w-5" />
+              <Card 
+                key={app.id}
+                className={cn(
+                  "relative overflow-hidden transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-xl group",
+                  isPremium 
+                    ? "bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/5 border-indigo-500/30 hover:border-indigo-500/60 hover:shadow-indigo-500/20" 
+                    : "bg-card hover:border-primary/40 hover:shadow-primary/5"
+                )}
+              >
+                {/* Decorative background glow for premium cards */}
+                {isPremium && (
+                  <div className="absolute -right-20 -top-20 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors duration-500" />
+                )}
+                
+                <CardContent className="flex items-start gap-4 p-5 relative z-10">
+                  <div className={cn(
+                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors duration-300",
+                    isPremium ? "bg-indigo-500/10 text-indigo-600 group-hover:bg-indigo-500/20" : "bg-primary/10 text-primary group-hover:bg-primary/20"
+                  )}>
+                    <Briefcase className="h-6 w-6" />
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-semibold leading-tight">
-                          {app.job_title}
-                        </h3>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-lg leading-tight truncate group-hover:text-primary transition-colors">
+                            {app.job_title}
+                          </h3>
+                          {isPremium && (
+                            <span className="flex h-5 items-center rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 px-2 text-[9px] font-bold text-white uppercase tracking-wider animate-pulse shadow-sm">
+                              ✨ {app.status === "INVITED" ? "Invited" : "Top Match"}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1.5 truncate">
                             <Avatar size="sm">
                               <AvatarImage src={app.company_avatar_url || undefined} alt={app.company || "Company"} />
                               <AvatarFallback>
                                 {(app.company || "C").slice(0, 1).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-                            {app.company}
+                            <span className="truncate max-w-[120px]">{app.company}</span>
                           </span>
                           {app.location && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {app.location}
+                            <span className="flex items-center gap-1 truncate max-w-[100px]">
+                              <MapPin className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{app.location}</span>
                             </span>
                           )}
                         </div>
                       </div>
-                      <Badge variant={cfg.variant} className="shrink-0 gap-1">
+
+                      <div className="w-full sm:w-auto sm:flex-1 sm:max-w-[250px] md:max-w-[300px] flex justify-center">
+                        <ApplicationTimeline status={app.status} />
+                      </div>
+
+                      <Badge variant={cfg.variant} className="shrink-0 gap-1 self-start sm:self-center">
                         {cfg.icon}
                         {cfg.label}
                       </Badge>
                     </div>
 
                     {app.cover_letter && (
-                      <p className="text-xs text-muted-foreground line-clamp-2 italic">
+                      <p className="text-xs text-muted-foreground line-clamp-2 italic pt-2">
                         &ldquo;{app.cover_letter}&rdquo;
                       </p>
                     )}
@@ -352,8 +415,10 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                 </CardContent>
               </Card>
             );
-          })}
-        </div>
+          })
+            )}
+          </div>
+        </>
       )}
 
       <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
@@ -558,5 +623,65 @@ function StatCard({
         <p className="text-xs text-muted-foreground">{label}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function ApplicationTimeline({ status }: { status: string }) {
+  if (status === "INVITED") return null; // No timeline needed for invitations yet
+
+  const steps = [
+    { key: "applied", label: "Applied", active: true },
+    { key: "interview", label: "Interview", active: ["INTERVIEWING", "ACCEPTED"].includes(status) },
+    { 
+      key: "decision", 
+      label: status === "ACCEPTED" ? "Accepted" : status === "REJECTED" ? "Rejected" : status === "WITHDRAWN" ? "Withdrawn" : "Decision", 
+      active: ["ACCEPTED", "REJECTED", "WITHDRAWN"].includes(status),
+      variant: status === "ACCEPTED" ? "success" : status === "REJECTED" ? "destructive" : status === "WITHDRAWN" ? "warning" : "default"
+    }
+  ];
+
+  return (
+    <div className="flex items-center w-full max-w-sm mt-2 relative mx-auto">
+      {steps.map((step, idx) => (
+        <div key={step.key} className="flex items-center flex-1 last:flex-none">
+          <div className="flex flex-col items-center gap-1.5 relative z-10">
+            <div 
+              className={cn(
+                "h-5 w-5 rounded-full flex items-center justify-center border-2 text-[9px] font-bold transition-all duration-300",
+                step.active 
+                  ? step.variant === "success" ? "bg-green-500 border-green-500 text-white shadow-[0_0_10px_rgba(34,197,94,0.4)]" 
+                    : step.variant === "destructive" ? "bg-red-500 border-red-500 text-white"
+                    : step.variant === "warning" ? "bg-amber-500 border-amber-500 text-white"
+                    : "bg-primary border-primary text-primary-foreground shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                  : "bg-muted border-muted-foreground/30 text-muted-foreground"
+              )}
+            >
+              {step.active && step.variant === "success" ? <CheckCircle2 className="h-3 w-3" /> 
+               : step.active && step.variant === "destructive" ? <XCircle className="h-3 w-3" />
+               : idx + 1}
+            </div>
+            <span className={cn(
+              "text-[10px] font-medium absolute top-6 whitespace-nowrap",
+              step.active ? "text-foreground" : "text-muted-foreground"
+            )}>
+              {step.label}
+            </span>
+          </div>
+          
+          {/* Connector Line */}
+          {idx < steps.length - 1 && (
+            <div className="flex-1 h-[2px] mx-1 relative">
+              <div className="absolute inset-0 bg-muted-foreground/20 rounded-full" />
+              <div 
+                className={cn(
+                  "absolute inset-y-0 left-0 rounded-full transition-all duration-500",
+                  steps[idx + 1].active ? "w-full bg-primary" : "w-0 bg-primary"
+                )} 
+              />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }

@@ -386,17 +386,38 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
             {items.map((item, idx) => {
               const alreadyApplied = appliedJobs.has(item.job_id);
               const alreadySaved = savedJobs.has(item.job_id);
+              const isPremium = item.score >= 0.9;
 
               return (
                 <div
                   key={`${item.job_id}-${idx}`}
                   style={{ animationDelay: `${idx * 80}ms`, animationFillMode: "both" }}
-                  className="animate-in fade-in slide-in-from-bottom-4 duration-400 rounded-xl border border-border bg-card/10 hover:bg-accent/40 transition-all hover:border-border/80 hover:shadow-lg hover:shadow-foreground/5 flex overflow-hidden group"
+                  className={cn(
+                    "animate-in fade-in slide-in-from-bottom-4 duration-400 rounded-xl relative flex overflow-hidden group transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl",
+                    isPremium 
+                      ? "bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/5 border border-indigo-500/30 hover:border-indigo-500/60 hover:shadow-indigo-500/20" 
+                      : "bg-card/10 border border-border hover:bg-accent/40 hover:border-border/80 hover:shadow-foreground/5"
+                  )}
                 >
+                  {/* Decorative background glow for premium cards */}
+                  {isPremium && (
+                    <div className="absolute -right-20 -top-20 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors duration-500 z-0 pointer-events-none" />
+                  )}
                   {/* ── Rank sidebar ── */}
-                  <div className="flex w-12 shrink-0 flex-col items-center justify-center border-r border-border/60 bg-muted/20 select-none">
-                    <span className="text-sm font-mono font-bold text-muted-foreground group-hover:text-emerald-500 transition-colors">#{idx + 1}</span>
-                    <span className="text-[8px] font-mono uppercase tracking-wider text-muted-foreground mt-0.5">
+                  <div className={cn(
+                    "flex w-12 shrink-0 flex-col items-center justify-center border-r select-none relative z-10 transition-colors duration-300",
+                    isPremium ? "bg-indigo-500/5 border-indigo-500/20 group-hover:bg-indigo-500/10" : "bg-muted/20 border-border/60"
+                  )}>
+                    <span className={cn(
+                      "text-sm font-mono font-bold transition-colors duration-300",
+                      isPremium ? "text-indigo-500 group-hover:text-indigo-400" : "text-muted-foreground group-hover:text-primary"
+                    )}>
+                      #{idx + 1}
+                    </span>
+                    <span className={cn(
+                      "text-[8px] font-mono uppercase tracking-wider mt-0.5",
+                      isPremium ? "text-indigo-500/70" : "text-muted-foreground"
+                    )}>
                       rank
                     </span>
                   </div>
@@ -442,11 +463,24 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                       </div>
                       {/* Match score pill & Hide Action */}
                       <div className="flex items-center gap-2 shrink-0">
-                        <div className="flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1">
-                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                        <div className={cn(
+                          "flex items-center gap-1 rounded-full px-2.5 py-1",
+                          isPremium 
+                            ? "bg-gradient-to-r from-indigo-500 to-purple-500 animate-pulse shadow-sm border-none" 
+                            : "bg-emerald-500/10 border border-emerald-500/20"
+                        )}>
+                          <span className={cn(
+                            "text-xs font-bold font-mono",
+                            isPremium ? "text-white" : "text-emerald-600 dark:text-emerald-400"
+                          )}>
                             {(item.score * 100).toFixed(0)}%
                           </span>
-                          <span className="text-[9px] text-emerald-600/70 dark:text-emerald-500/70 font-medium">match</span>
+                          <span className={cn(
+                            "text-[9px] font-medium",
+                            isPremium ? "text-white uppercase tracking-wider font-bold" : "text-emerald-600/70 dark:text-emerald-500/70 lowercase tracking-normal"
+                          )}>
+                            match
+                          </span>
                         </div>
                         <Button 
                           variant="ghost" 
@@ -465,13 +499,15 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                     </div>
 
                     {/* ── Post body ── */}
-                    <div className="px-5 pt-3 pb-0">
-                      <h3
-                        className="text-base font-semibold text-foreground cursor-pointer hover:text-emerald-500 transition-colors leading-snug"
-                        onClick={() => void openDetail(item)}
-                      >
-                        {item.job_title}
-                      </h3>
+                    <div className="px-5 pt-3 pb-0 relative z-10">
+                      <div className="flex items-center gap-2">
+                        <h3
+                          className="text-base font-bold text-foreground cursor-pointer group-hover:text-primary transition-colors leading-snug truncate"
+                          onClick={() => void openDetail(item)}
+                        >
+                          {item.job_title}
+                        </h3>
+                      </div>
 
                       {item.brief_description && (
                         <div className="mt-2 text-sm text-muted-foreground leading-relaxed">
@@ -553,7 +589,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                     </div>
 
                     {/* ── Action bar ── */}
-                    <div className="flex items-center justify-between border-t border-border mt-4 px-2 py-1.5">
+                    <div className="flex items-center justify-between border-t border-border mt-4 px-2 py-1.5 relative z-10">
                       <div className="flex">
                         <button
                           type="button"

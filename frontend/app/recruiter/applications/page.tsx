@@ -81,6 +81,7 @@ function Content({ session }: { session: SessionData }) {
   const [apps, setApps] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterStatus>("ALL");
+  const [jobFilter, setJobFilter] = useState<number | "ALL">("ALL");
   const [schedulingApp, setSchedulingApp] = useState<number | null>(null);
   const [chatApp, setChatApp] = useState<number | null>(null);
   const [interviewData, setInterviewData] = useState({
@@ -190,21 +191,24 @@ function Content({ session }: { session: SessionData }) {
       toastError(err instanceof Error ? err.message : "Failed to schedule interview.");
     }
   }
-  const filtered = filter === "ALL" ? apps : apps.filter((a) => a.status === filter);
-  const pending = apps.filter((a) => a.status === "PENDING").length;
-  const accepted = apps.filter((a) => a.status === "ACCEPTED").length;
-  const interviewing = apps.filter((a) => a.status === "INTERVIEWING").length;
-  const rejected = apps.filter((a) => a.status === "REJECTED").length;
+  const uniqueJobs = Array.from(new Map(apps.map(a => [a.job_id, a.job_title])).entries());
+  const filteredByJob = jobFilter === "ALL" ? apps : apps.filter(a => a.job_id === jobFilter);
+
+  const filtered = filter === "ALL" ? (filter === "ALL" ? filteredByJob : filteredByJob) : filteredByJob.filter((a) => a.status === filter);
+  const pending = filteredByJob.filter((a) => a.status === "PENDING").length;
+  const accepted = filteredByJob.filter((a) => a.status === "ACCEPTED").length;
+  const interviewing = filteredByJob.filter((a) => a.status === "INTERVIEWING").length;
+  const rejected = filteredByJob.filter((a) => a.status === "REJECTED").length;
 
   const filters: { key: FilterStatus; label: string; count?: number }[] = [
-    { key: "ALL", label: "All", count: apps.filter((a) => a.status !== "DISCOVER").length },
+    { key: "ALL", label: "All", count: filteredByJob.filter((a) => a.status !== "DISCOVER").length },
     { key: "PENDING", label: "Pending", count: pending },
     { key: "ACCEPTED", label: "Accepted", count: accepted },
     { key: "INTERVIEWING", label: "Interviewing", count: interviewing },
-    { key: "INVITED", label: "Invited", count: apps.filter((a) => a.status === "INVITED").length },
+    { key: "INVITED", label: "Invited", count: filteredByJob.filter((a) => a.status === "INVITED").length },
     { key: "REJECTED", label: "Rejected", count: rejected },
     { key: "WITHDRAWN", label: "Withdrawn" },
-    { key: "DISCOVER", label: "Discover", count: apps.filter((a) => a.status === "DISCOVER").length },
+    { key: "DISCOVER", label: "Discover", count: filteredByJob.filter((a) => a.status === "DISCOVER").length },
   ];
 
   return (
@@ -216,6 +220,24 @@ function Content({ session }: { session: SessionData }) {
         <StatCard label="Accepted" value={accepted} className="text-green-600" />
         <StatCard label="Rejected" value={rejected} className="text-red-500" />
       </div>
+
+      {/* Job Filter */}
+      {uniqueJobs.length > 0 && (
+        <div className="mb-4">
+          <select
+            className="w-full max-w-sm rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            value={jobFilter}
+            onChange={(e) => setJobFilter(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
+          >
+            <option value="ALL">All Jobs</option>
+            {uniqueJobs.map(([id, title]) => (
+              <option key={id} value={id}>
+                {title}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="mb-4 flex gap-2 flex-wrap">
@@ -274,9 +296,9 @@ function Content({ session }: { session: SessionData }) {
                     </div>
 
                     {/* Job reference */}
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs gap-1">
-                        <Briefcase className="h-3 w-3" /> {app.job_title}
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="text-sm font-medium gap-1.5 px-2.5 py-0.5 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10">
+                        <Briefcase className="h-3.5 w-3.5" /> {app.job_title}
                       </Badge>
                       {app.score !== null && (
                         <Badge variant="outline" className="text-[10px]">

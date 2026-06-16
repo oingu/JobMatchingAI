@@ -345,9 +345,12 @@ export function AppShell({ role, title, children }: AppShellProps) {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="cursor-pointer text-xs font-medium"
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        router.push(`/${role}/profile`);
+                      onClick={() => {
+                        if (session?.userId) {
+                          router.push(`/${role}/public/${session.userId}`);
+                        } else {
+                          router.push(`/${role}/profile`);
+                        }
                       }}
                     >
                       <User className="mr-2 h-3.5 w-3.5" />
@@ -355,8 +358,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="cursor-pointer text-xs font-medium"
-                      onSelect={(e) => {
-                        e.preventDefault();
+                      onClick={() => {
                         router.push(`/${role}/settings`);
                       }}
                     >
@@ -365,10 +367,10 @@ export function AppShell({ role, title, children }: AppShellProps) {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onSelect={(e) => {
-                        e.preventDefault();
+                      className="cursor-pointer text-xs font-medium text-destructive"
+                      onClick={() => {
                         clearSession();
-                        router.replace("/login");
+                        router.push("/login");
                       }}
                     >
                       <LogOut className="mr-2 h-3.5 w-3.5" />
