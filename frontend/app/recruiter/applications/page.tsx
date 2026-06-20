@@ -16,6 +16,8 @@ import {
   MessageCircle,
   Sparkles,
   Send,
+  Trophy,
+  ChevronRight,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -31,6 +33,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 type AppItem = {
   id: number;
@@ -60,13 +63,16 @@ const STATUS_CFG: Record<
   PENDING: { label: "Pending", icon: <Clock className="h-3.5 w-3.5" />, variant: "secondary" },
   ACCEPTED: { label: "Accepted", icon: <CheckCircle2 className="h-3.5 w-3.5" />, variant: "default" },
   INTERVIEWING: { label: "Interviewing", icon: <CalendarDays className="h-3.5 w-3.5" />, variant: "default" },
+  HIRED: { label: "Hired", icon: <CheckCircle2 className="h-3.5 w-3.5" />, variant: "success" as any },
   REJECTED: { label: "Rejected", icon: <XCircle className="h-3.5 w-3.5" />, variant: "destructive" },
   WITHDRAWN: { label: "Withdrawn", icon: <AlertCircle className="h-3.5 w-3.5" />, variant: "outline" },
   INVITED: { label: "Invited", icon: <Send className="h-3.5 w-3.5" />, variant: "outline" },
   DISCOVER: { label: "Recommended", icon: <Sparkles className="h-3.5 w-3.5" />, variant: "secondary" },
 };
 
-type FilterStatus = "ALL" | "PENDING" | "ACCEPTED" | "INTERVIEWING" | "REJECTED" | "WITHDRAWN" | "INVITED" | "DISCOVER";
+type FilterStatus = "ALL" | "PENDING" | "ACCEPTED" | "INTERVIEWING" | "HIRED" | "REJECTED" | "WITHDRAWN" | "INVITED" | "DISCOVER";
+
+const statuses: FilterStatus[] = ["ALL", "PENDING", "ACCEPTED", "INTERVIEWING", "HIRED", "REJECTED", "WITHDRAWN", "INVITED", "DISCOVER"];
 
 export default function RecruiterApplicationsPage() {
   return (
@@ -130,11 +136,18 @@ function Content({ session }: { session: SessionData }) {
 
   useEffect(() => {
     void load();
-    const interval = setInterval(() => {
-      void load();
-    }, 5000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  // Listen to WebSocket events to reload list
+  useEffect(() => {
+    const handleWsMessage = (e: Event) => {
+      const msg = (e as CustomEvent).detail;
+      if (msg.type === "new_message" || msg.type === "new_notification") {
+        void load();
+      }
+    };
+    window.addEventListener('ws-message', handleWsMessage);
+    return () => window.removeEventListener('ws-message', handleWsMessage);
   }, [session]);
 
   async function review(appId: number, status: "ACCEPTED" | "REJECTED") {
@@ -148,6 +161,20 @@ function Content({ session }: { session: SessionData }) {
       setApps((prev) => prev.map((a) => (a.id === appId ? { ...a, status } : a)));
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Review failed.");
+    }
+  }
+
+  async function updateStatus(appId: number, status: "HIRED" | "REJECTED") {
+    try {
+      await apiRequest(`/applications/${appId}/review`, {
+        method: "PUT",
+        session,
+        body: { status },
+      });
+      toastSuccess(`Application updated to ${status}.`);
+      setApps((prev) => prev.map((a) => (a.id === appId ? { ...a, status } : a)));
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Status update failed.");
     }
   }
 
@@ -194,7 +221,7 @@ function Content({ session }: { session: SessionData }) {
   const uniqueJobs = Array.from(new Map(apps.map(a => [a.job_id, a.job_title])).entries());
   const filteredByJob = jobFilter === "ALL" ? apps : apps.filter(a => a.job_id === jobFilter);
 
-  const filtered = filter === "ALL" ? (filter === "ALL" ? filteredByJob : filteredByJob) : filteredByJob.filter((a) => a.status === filter);
+  const filtered = filter === "ALL" ? filteredByJob : filteredByJob.filter((a) => a.status === filter);
   const pending = filteredByJob.filter((a) => a.status === "PENDING").length;
   const accepted = filteredByJob.filter((a) => a.status === "ACCEPTED").length;
   const interviewing = filteredByJob.filter((a) => a.status === "INTERVIEWING").length;
@@ -205,20 +232,51 @@ function Content({ session }: { session: SessionData }) {
     { key: "PENDING", label: "Pending", count: pending },
     { key: "ACCEPTED", label: "Accepted", count: accepted },
     { key: "INTERVIEWING", label: "Interviewing", count: interviewing },
-    { key: "INVITED", label: "Invited", count: filteredByJob.filter((a) => a.status === "INVITED").length },
+    { key: "HIRED", label: "Hired", count: filteredByJob.filter((a) => a.status === "HIRED").length },
     { key: "REJECTED", label: "Rejected", count: rejected },
     { key: "WITHDRAWN", label: "Withdrawn" },
     { key: "DISCOVER", label: "Discover", count: filteredByJob.filter((a) => a.status === "DISCOVER").length },
   ];
 
+  function StatCard({ label, value, className = "", icon }: { label: string; value: number; className?: string, icon?: React.ReactNode }) {
+    return (
+      <div className={cn("flex min-w-[130px] items-center justify-between gap-3 rounded-xl border border-white/40 dark:border-slate-800/50 bg-white/40 dark:bg-slate-950/40 backdrop-blur-md p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:bg-white/60 dark:hover:bg-slate-900/60", className)}>
+        <div className="flex flex-col">
+          <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">{label}</p>
+          <p className="text-2xl font-bold leading-none mt-1">{value}</p>
+        </div>
+        {icon && <div className="opacity-80">{icon}</div>}
+      </div>
+    );
+  }
+
   return (
     <AppShell role="recruiter" title="Applications">
-      {/* Stats */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Total" value={apps.length} />
-        <StatCard label="Pending" value={pending} className="text-amber-600" />
-        <StatCard label="Accepted" value={accepted} className="text-green-600" />
-        <StatCard label="Rejected" value={rejected} className="text-red-500" />
+      {/* Stats Pipeline */}
+      <div className="mb-8 p-4 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/30 dark:border-slate-700/30 shadow-[0_4px_30px_rgba(0,0,0,0.05)] flex flex-wrap items-center gap-4">
+        <StatCard label="Total" value={filteredByJob.filter(a => a.status !== "DISCOVER").length} icon={<Briefcase className="w-5 h-5" />} />
+        
+        <div className="hidden sm:block h-8 w-px bg-slate-200 dark:bg-slate-800 mx-2" />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <StatCard label="Invited" value={filteredByJob.filter((a) => a.status === "INVITED").length} className="text-indigo-600 bg-indigo-50/60 dark:bg-indigo-900/20 border-indigo-200/50 dark:border-indigo-800/40" icon={<Sparkles className="w-5 h-5" />} />
+          <ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-700 hidden sm:block" />
+          
+          <StatCard label="Pending" value={pending} className="text-amber-600 bg-amber-50/60 dark:bg-amber-900/20 border-amber-200/50 dark:border-amber-800/40" icon={<Clock className="w-5 h-5" />} />
+          <ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-700 hidden sm:block" />
+          
+          <StatCard label="Accepted" value={accepted} className="text-green-600 bg-green-50/60 dark:bg-green-900/20 border-green-200/50 dark:border-green-800/40" icon={<CheckCircle2 className="w-5 h-5" />} />
+          <ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-700 hidden sm:block" />
+          
+          <StatCard label="Interviewing" value={interviewing} className="text-blue-600 bg-blue-50/60 dark:bg-blue-900/20 border-blue-200/50 dark:border-blue-800/40" icon={<CalendarDays className="w-5 h-5" />} />
+          <ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-700 hidden sm:block" />
+          
+          <StatCard label="Hired" value={filteredByJob.filter((a) => a.status === "HIRED").length} className="text-emerald-600 bg-emerald-50/80 dark:bg-emerald-900/30 border-emerald-300/60 dark:border-emerald-700/50 ring-1 ring-emerald-500/30 shadow-sm" icon={<Trophy className="w-5 h-5" />} />
+        </div>
+
+        <div className="sm:ml-auto">
+          <StatCard label="Rejected" value={rejected} className="text-red-500 bg-red-50/60 dark:bg-red-900/20 border-red-200/50 dark:border-red-800/40 opacity-80 hover:opacity-100" icon={<XCircle className="w-5 h-5" />} />
+        </div>
       </div>
 
       {/* Job Filter */}
@@ -391,6 +449,25 @@ function Content({ session }: { session: SessionData }) {
                             >
                               <CalendarDays className="h-3.5 w-3.5" /> Schedule Interview
                             </Button>
+                          )}
+                          {app.status === "INTERVIEWING" && (
+                            <>
+                              <Button
+                                size="sm"
+                                className="gap-1 text-xs bg-green-600 hover:bg-green-700"
+                                onClick={() => updateStatus(app.id, "HIRED")}
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Hire
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="gap-1 text-xs"
+                                onClick={() => updateStatus(app.id, "REJECTED")}
+                              >
+                                <XCircle className="h-3.5 w-3.5" /> Reject
+                              </Button>
+                            </>
                           )}
                           <Button
                             size="sm"

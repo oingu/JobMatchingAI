@@ -57,6 +57,19 @@ def send_notification(
     try:
         db.commit()
         db.refresh(notification)
+        
+        # Bắn WebSocket event
+        from app.services.websockets import manager
+        manager.dispatch({
+            "type": "new_notification",
+            "notification": {
+                "id": notification.id,
+                "title": notification.title,
+                "body": notification.body,
+                "is_read": notification.is_read,
+                "created_at": notification.created_at.isoformat()
+            }
+        }, user_id)
     except IntegrityError:
         db.rollback()
         if idempotency_key:

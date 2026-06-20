@@ -40,9 +40,7 @@ class Settings:
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     cohere_api_key: str = os.getenv("COHERE_API_KEY", "")
     cohere_embed_model: str = os.getenv("COHERE_EMBED_MODEL", "embed-multilingual-v3.0")
-    openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
-    openrouter_model: str = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
-    cv_parser_mode: str = os.getenv("CV_PARSER_MODE", "auto")  # auto | openrouter | gemini | regex
+    cv_parser_mode: str = os.getenv("CV_PARSER_MODE", "auto")  # auto | gemini | regex
     smtp_host: str = os.getenv("SMTP_HOST", "")
     smtp_port: int = _env_int("SMTP_PORT", 587)
     smtp_user: str = os.getenv("SMTP_USER", "")

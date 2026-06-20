@@ -66,14 +66,29 @@ export function ChatBox({ applicationId, currentUserId, session, recipientName, 
     }
   }
 
-  // Polling every 3 seconds
+  // Initial load
   useEffect(() => {
     void loadMessages();
-    const interval = setInterval(() => {
-      void loadMessages();
-    }, 3000);
-    return () => clearInterval(interval);
   }, [applicationId, session]);
+
+  // Listen to WebSocket events
+  useEffect(() => {
+    const handleWsMessage = (e: Event) => {
+      const msg = (e as CustomEvent).detail;
+      if (msg.type === "new_message" && msg.application_id === applicationId) {
+        setMessages(prev => {
+          // Avoid duplicates by ID
+          if (prev.find(m => m.id === msg.message.id)) return prev;
+          return [...prev, msg.message];
+        });
+        if (!isMinimized && msg.message.sender_id !== currentUserId) {
+          void markAsRead();
+        }
+      }
+    };
+    window.addEventListener('ws-message', handleWsMessage);
+    return () => window.removeEventListener('ws-message', handleWsMessage);
+  }, [applicationId, isMinimized, currentUserId]);
 
   // Scroll to bottom when messages change
   useEffect(() => {

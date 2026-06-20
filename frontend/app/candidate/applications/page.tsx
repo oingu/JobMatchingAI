@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   Briefcase,
   Building2,
@@ -22,6 +23,11 @@ import {
   Monitor,
   Send,
   ArrowRight,
+  CalendarDays,
+  ChevronRight,
+  Trophy,
+  Sparkles,
+  Bot,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
@@ -47,6 +53,7 @@ import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
+import { MockInterviewDialog } from "@/components/mock-interview-dialog";
 
 type ApplicationItem = {
   id: number;
@@ -97,6 +104,16 @@ const STATUS_CONFIG: Record<
     icon: <Clock className="h-3.5 w-3.5" />,
     variant: "secondary",
   },
+  INTERVIEWING: {
+    label: "Interviewing",
+    icon: <CalendarDays className="h-3.5 w-3.5" />,
+    variant: "default",
+  },
+  HIRED: {
+    label: "Hired",
+    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+    variant: "default",
+  },
   ACCEPTED: {
     label: "Accepted",
     icon: <CheckCircle2 className="h-3.5 w-3.5" />,
@@ -138,6 +155,7 @@ function ApplicationsContent({ session }: { session: SessionData }) {
   const [detailApp, setDetailApp] = useState<ApplicationItem | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [chatAppId, setChatAppId] = useState<number | null>(null);
+  const [mockInterviewAppId, setMockInterviewAppId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -154,11 +172,18 @@ function ApplicationsContent({ session }: { session: SessionData }) {
 
   useEffect(() => {
     void load();
-    const interval = setInterval(() => {
-      void load();
-    }, 5000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  // Listen to WebSocket events to reload list
+  useEffect(() => {
+    const handleWsMessage = (e: Event) => {
+      const msg = (e as CustomEvent).detail;
+      if (msg.type === "new_message" || msg.type === "new_notification") {
+        void load();
+      }
+    };
+    window.addEventListener('ws-message', handleWsMessage);
+    return () => window.removeEventListener('ws-message', handleWsMessage);
   }, [session]);
 
   async function withdraw(appId: number) {
@@ -208,29 +233,68 @@ function ApplicationsContent({ session }: { session: SessionData }) {
 
   const pending = apps.filter((a) => a.status === "PENDING");
   const accepted = apps.filter((a) => a.status === "ACCEPTED");
+  const interviewing = apps.filter((a) => a.status === "INTERVIEWING");
+  const hired = apps.filter((a) => a.status === "HIRED");
   const rejected = apps.filter((a) => a.status === "REJECTED");
   const invited = apps.filter((a) => a.status === "INVITED");
 
   const filteredApps = apps.filter((a) => statusFilter === "ALL" || a.status === statusFilter);
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  };
+
+  const itemVariants: any = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
     <AppShell role="candidate" title={t("candidate.apps.title")}>
-      {/* Stats */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <StatCard label={t("candidate.apps.total")} value={apps.length} />
-        <StatCard label={t("candidate.apps.invited")} value={invited.length} className="text-indigo-600" />
-        <StatCard label={t("candidate.apps.pending")} value={pending.length} />
-        <StatCard
-          label={t("candidate.apps.accepted")}
-          value={accepted.length}
-          className="text-green-600"
-        />
-        <StatCard
-          label={t("candidate.apps.rejected")}
-          value={rejected.length}
-          className="text-red-500"
-        />
-      </div>
+      {/* Stats Pipeline */}
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="mb-8 p-4 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/30 dark:border-slate-700/30 shadow-[0_4px_30px_rgba(0,0,0,0.05)] flex flex-wrap items-center gap-4"
+      >
+        <motion.div variants={itemVariants}>
+          <StatCard label={t("candidate.apps.total")} value={apps.length} icon={<Briefcase className="w-5 h-5" />} />
+        </motion.div>
+        
+        <motion.div variants={itemVariants} className="hidden sm:block h-8 w-px bg-slate-200 dark:bg-slate-800 mx-2" />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <motion.div variants={itemVariants}>
+            <StatCard label={t("candidate.apps.invited")} value={invited.length} className="text-indigo-600 bg-indigo-50/60 dark:bg-indigo-900/20 border-indigo-200/50 dark:border-indigo-800/40" icon={<Sparkles className="w-5 h-5" />} />
+          </motion.div>
+          <motion.div variants={itemVariants}><ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-700 hidden sm:block" /></motion.div>
+          
+          <motion.div variants={itemVariants}>
+            <StatCard label={t("candidate.apps.pending")} value={pending.length} className="text-amber-600 bg-amber-50/60 dark:bg-amber-900/20 border-amber-200/50 dark:border-amber-800/40" icon={<Clock className="w-5 h-5" />} />
+          </motion.div>
+          <motion.div variants={itemVariants}><ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-700 hidden sm:block" /></motion.div>
+          
+          <motion.div variants={itemVariants}>
+            <StatCard label={t("candidate.apps.accepted")} value={accepted.length} className="text-green-600 bg-green-50/60 dark:bg-green-900/20 border-green-200/50 dark:border-green-800/40" icon={<CheckCircle2 className="w-5 h-5" />} />
+          </motion.div>
+          <motion.div variants={itemVariants}><ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-700 hidden sm:block" /></motion.div>
+          
+          <motion.div variants={itemVariants}>
+            <StatCard label="Interviewing" value={interviewing.length} className="text-blue-600 bg-blue-50/60 dark:bg-blue-900/20 border-blue-200/50 dark:border-blue-800/40" icon={<CalendarDays className="w-5 h-5" />} />
+          </motion.div>
+          <motion.div variants={itemVariants}><ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-700 hidden sm:block" /></motion.div>
+          
+          <motion.div variants={itemVariants}>
+            <StatCard label="Hired" value={hired.length} className="text-emerald-600 bg-emerald-50/80 dark:bg-emerald-900/30 border-emerald-300/60 dark:border-emerald-700/50 ring-1 ring-emerald-500/30 shadow-sm" icon={<Trophy className="w-5 h-5" />} />
+          </motion.div>
+        </div>
+
+        <motion.div variants={itemVariants} className="sm:ml-auto">
+          <StatCard label={t("candidate.apps.rejected")} value={rejected.length} className="text-red-500 bg-red-50/60 dark:bg-red-900/20 border-red-200/50 dark:border-red-800/40 opacity-80 hover:opacity-100" icon={<XCircle className="w-5 h-5" />} />
+        </motion.div>
+      </motion.div>
 
       {loading ? (
         <p className="text-center text-sm text-muted-foreground py-12">
@@ -252,7 +316,7 @@ function ApplicationsContent({ session }: { session: SessionData }) {
             >
               All
             </Button>
-            {["INVITED", "PENDING", "INTERVIEWING", "ACCEPTED", "REJECTED", "WITHDRAWN"].map((status) => (
+            {["INVITED", "PENDING", "ACCEPTED", "INTERVIEWING", "HIRED", "REJECTED", "WITHDRAWN"].map((status) => (
               <Button
                 key={status}
                 variant={statusFilter === status ? "default" : "outline"}
@@ -265,19 +329,25 @@ function ApplicationsContent({ session }: { session: SessionData }) {
             ))}
           </div>
 
-          <div className="space-y-3">
+          <motion.div 
+            className="space-y-3"
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            key={statusFilter} // Re-animate when filter changes
+          >
             {filteredApps.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
+              <motion.div variants={itemVariants} className="py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
                 No applications found for the selected status.
-              </div>
+              </motion.div>
             ) : (
               filteredApps.map((app) => {
             const cfg = STATUS_CONFIG[app.status] ?? STATUS_CONFIG.PENDING;
             const isPremium = app.status === "INVITED" || (app.score !== null && app.score >= 0.9);
 
             return (
+              <motion.div key={app.id} variants={itemVariants}>
               <Card 
-                key={app.id}
                 className={cn(
                   "relative overflow-hidden transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-xl group",
                   isPremium 
@@ -298,7 +368,7 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                     <Briefcase className="h-6 w-6" />
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-lg leading-tight truncate group-hover:text-primary transition-colors">
@@ -329,14 +399,11 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                         </div>
                       </div>
 
-                      <div className="w-full sm:w-auto sm:flex-1 sm:max-w-[250px] md:max-w-[300px] flex justify-center">
-                        <ApplicationTimeline status={app.status} />
+                      <div className="w-full sm:w-auto flex flex-col items-end gap-3 shrink-0">
+                        <div className="w-full sm:w-auto sm:min-w-[250px] md:min-w-[300px] flex justify-end">
+                          <ApplicationTimeline status={app.status} />
+                        </div>
                       </div>
-
-                      <Badge variant={cfg.variant} className="shrink-0 gap-1 self-start sm:self-center">
-                        {cfg.icon}
-                        {cfg.label}
-                      </Badge>
                     </div>
 
                     {app.cover_letter && (
@@ -345,8 +412,9 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                       </p>
                     )}
 
-                    <div className="flex items-center gap-3 pt-1">
-                      <Button
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Button
                         variant="outline"
                         size="sm"
                         className="gap-1 text-xs"
@@ -396,6 +464,7 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                         </div>
                       )}
                       {["ACCEPTED", "INTERVIEWING"].includes(app.status) && (
+                        <>
                         <Button
                           variant="secondary"
                           size="sm"
@@ -409,15 +478,30 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                             </span>
                           )}
                         </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="gap-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                          onClick={() => setMockInterviewAppId(app.id.toString())}
+                        >
+                          <Bot className="h-3 w-3" /> {t("candidate.apps.mock_interview")}
+                        </Button>
+                        </>
                       )}
+                      </div>
+                      <Badge variant={cfg.variant} className="shrink-0 gap-1 ml-auto">
+                        {cfg.icon}
+                        {cfg.label}
+                      </Badge>
                     </div>
                   </div>
                 </CardContent>
               </Card>
+              </motion.div>
             );
           })
             )}
-          </div>
+          </motion.div>
         </>
       )}
 
@@ -578,6 +662,14 @@ function ApplicationsContent({ session }: { session: SessionData }) {
           </div>
         );
       })()}
+      {mockInterviewAppId && (
+        <MockInterviewDialog
+          appId={mockInterviewAppId}
+          isOpen={true}
+          onClose={() => setMockInterviewAppId(null)}
+          session={session}
+        />
+      )}
     </AppShell>
   );
 }
@@ -607,36 +699,40 @@ function InfoRow({
   );
 }
 
-function StatCard({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: number;
-  className?: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="p-4 text-center">
-        <p className={`text-2xl font-bold ${className ?? ""}`}>{value}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
-      </CardContent>
-    </Card>
-  );
-}
+  function StatCard({ label, value, className = "", icon }: { label: string; value: number; className?: string, icon?: React.ReactNode }) {
+    return (
+      <div className={cn("flex min-w-[130px] items-center justify-between gap-3 rounded-xl border border-white/40 dark:border-slate-800/50 bg-white/40 dark:bg-slate-950/40 backdrop-blur-md p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:bg-white/60 dark:hover:bg-slate-900/60", className)}>
+        <div className="flex flex-col">
+          <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">{label}</p>
+          <p className="text-2xl font-bold leading-none mt-1">{value}</p>
+        </div>
+        {icon && <div className="opacity-80">{icon}</div>}
+      </div>
+    );
+  }
 
 function ApplicationTimeline({ status }: { status: string }) {
   if (status === "INVITED") return null; // No timeline needed for invitations yet
 
   const steps = [
-    { key: "applied", label: "Applied", active: true },
-    { key: "interview", label: "Interview", active: ["INTERVIEWING", "ACCEPTED"].includes(status) },
+    { key: "applied", label: "Applied", active: true, variant: "default" },
     { 
-      key: "decision", 
-      label: status === "ACCEPTED" ? "Accepted" : status === "REJECTED" ? "Rejected" : status === "WITHDRAWN" ? "Withdrawn" : "Decision", 
-      active: ["ACCEPTED", "REJECTED", "WITHDRAWN"].includes(status),
-      variant: status === "ACCEPTED" ? "success" : status === "REJECTED" ? "destructive" : status === "WITHDRAWN" ? "warning" : "default"
+      key: "shortlisted", 
+      label: ["ACCEPTED", "INTERVIEWING", "HIRED"].includes(status) ? "Shortlisted" : status === "REJECTED" ? "Rejected" : status === "WITHDRAWN" ? "Withdrawn" : "Under Review", 
+      active: ["ACCEPTED", "INTERVIEWING", "HIRED", "REJECTED", "WITHDRAWN"].includes(status),
+      variant: status === "REJECTED" ? "destructive" : status === "WITHDRAWN" ? "warning" : "default"
+    },
+    { 
+      key: "interview", 
+      label: "Interviewing", 
+      active: ["INTERVIEWING", "HIRED"].includes(status),
+      variant: status === "INTERVIEWING" ? "success" : "default"
+    },
+    {
+      key: "hired",
+      label: "Hired",
+      active: status === "HIRED",
+      variant: status === "HIRED" ? "success" : "default"
     }
   ];
 

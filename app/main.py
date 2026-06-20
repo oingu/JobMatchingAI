@@ -4,7 +4,7 @@ import os
 import uuid
 from datetime import timedelta
 
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -49,11 +49,13 @@ from app.schemas import (
     RecruiterProfileCreate,
     UserCreate,
     UserOnlineUpdate,
+    MockInterviewEvaluate,
 )
 from app.services.auth import authenticate, get_current_user, issue_token, require_role, require_verified
 from app.services.audit import audit
 from app.services.cv_parser import parse_cv as regex_parse_cv
 from app.services.cv_parser_gemini import parse_cv_with_gemini, GeminiParseResult
+from app.services.ai_career_coach import analyze_resume_with_gemini, analyze_skill_gap_with_gemini
 
 from app.services.behavior import reset_no_response_streak, update_all_candidates_behavior, update_user_behavior_state
 from app.services.evaluation import compare_baseline_vs_improved, engagement_metrics, precision_recall_at_k
@@ -63,11 +65,13 @@ from app.services.email import build_otp_email, is_email_configured
 from app.utils.email import send_email
 from app.services.rate_limiter import check_rate_limit
 from app.services.security import hash_password
+from app.services.websockets import manager
 from app.utils.time import as_utc, now_utc
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    manager.loop = asyncio.get_running_loop()
     task = asyncio.create_task(background_worker())
     try:
         yield
@@ -1545,12 +1549,41 @@ def review_application(
     job = db.query(Job).filter(Job.id == app_obj.job_id, Job.recruiter_id == current_user.id).first()
     if not job:
         raise HTTPException(status_code=403, detail="Not your job posting.")
-    if app_obj.status not in ("PENDING", "REVIEWED"):
+    if app_obj.status not in ("PENDING", "REVIEWED", "INTERVIEWING"):
         raise HTTPException(status_code=400, detail=f"Cannot review application with status '{app_obj.status}'.")
     app_obj.status = payload.status
     app_obj.updated_at = now_utc()
+    if payload.status == "HIRED":
+        db.add(InteractionLog(
+            user_id=app_obj.candidate_id,
+            job_id=app_obj.job_id,
+            event_type="hired",
+            event_metadata={"weight": 100.0},
+        ))
     db.commit()
     db.refresh(app_obj)
+    
+    candidate_user = db.query(User).filter(User.id == app_obj.candidate_id).first()
+    if candidate_user and candidate_user.email:
+        subject = None
+        if payload.status == "HIRED":
+            subject = f"[JobMatch AI] Congratulations! You have been hired for {job.title}"
+            text_content = f"Hi {candidate_user.name},\n\nWe are thrilled to inform you that {current_user.name} has selected you for the position of {job.title}.\nPlease log in to your dashboard to review the offer and next steps.\n\nBest,\nJobMatch AI Team"
+            html_content = f"<p>Hi <b>{candidate_user.name}</b>,</p><p>We are thrilled to inform you that <b>{current_user.name}</b> has selected you for the position of <b>{job.title}</b>.</p><p>Please log in to your dashboard to review the offer and next steps.</p><p>Best,<br>JobMatch AI Team</p>"
+        elif payload.status == "REJECTED":
+            subject = f"[JobMatch AI] Update on your application for {job.title}"
+            text_content = f"Hi {candidate_user.name},\n\nThank you for applying to the {job.title} position.\nUnfortunately, the recruiter has decided not to move forward with your application at this time.\nWe encourage you to keep exploring other opportunities on our platform.\n\nBest,\nJobMatch AI Team"
+            html_content = f"<p>Hi <b>{candidate_user.name}</b>,</p><p>Thank you for applying to the <b>{job.title}</b> position.</p><p>Unfortunately, the recruiter has decided not to move forward with your application at this time.</p><p>We encourage you to keep exploring other opportunities on our platform.</p><p>Best,<br>JobMatch AI Team</p>"
+            
+        if subject:
+            from app.utils.email import send_email
+            send_email(candidate_user.email, subject, text_content, html_content)
+            db.add(Notification(
+                user_id=candidate_user.id,
+                title="Application Update",
+                body=f"Your application for {job.title} is now: {payload.status}.",
+            ))
+            db.commit()
     enqueue_event(
         db,
         event_type="application_reviewed",
@@ -1694,6 +1727,109 @@ def respond_to_invitation(
     db.commit()
     db.refresh(app_obj)
     return api_ok({"application_id": app_obj.id, "status": app_obj.status})
+
+
+from app.services.mock_interview import generate_mock_questions, evaluate_mock_answer
+
+@app.post("/applications/{application_id}/mock-interview/generate")
+def api_mock_interview_generate(
+    application_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_role(current_user, "candidate")
+    app_obj = db.query(Application).filter(Application.id == application_id, Application.candidate_id == current_user.id).first()
+    if not app_obj:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    
+    if app_obj.status not in ["ACCEPTED", "INTERVIEWING"]:
+        raise HTTPException(status_code=400, detail="Mock interviews are only available for accepted or interviewing applications.")
+        
+    job = db.query(Job).filter(Job.id == app_obj.job_id).first()
+    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == current_user.id).first()
+    
+    if not job or not profile:
+        raise HTTPException(status_code=404, detail="Job or Candidate Profile not found.")
+        
+    job_desc = job.brief_description or ""
+    candidate_skills = ", ".join(
+        skill.get("name", "") if isinstance(skill, dict) else str(skill)
+        for skill in (profile.skills or [])
+    )
+    
+    questions = generate_mock_questions(job.title, job_desc, candidate_skills)
+    return api_ok({"questions": questions})
+
+@app.post("/applications/{application_id}/mock-interview/evaluate")
+def api_mock_interview_evaluate(
+    application_id: str,
+    payload: MockInterviewEvaluate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    require_role(current_user, "candidate")
+    # Verify application belongs to candidate
+    app_obj = db.query(Application).filter(Application.id == application_id, Application.candidate_id == current_user.id).first()
+    if not app_obj:
+        raise HTTPException(status_code=404, detail="Application not found.")
+        
+    result = evaluate_mock_answer(payload.question, payload.answer)
+    return api_ok(result)
+
+
+@app.post("/candidate-profiles/me/analyze-resume")
+def api_analyze_resume(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    if current_user.role != "candidate":
+        raise HTTPException(status_code=403, detail="Only candidates can analyze their resumes.")
+    
+    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found.")
+    
+    profile_data = {
+        "bio": profile.bio,
+        "experience_level": profile.experience_level,
+        "education": profile.education,
+        "experiences": profile.experiences,
+        "skills": profile.skills,
+    }
+    
+    analysis = analyze_resume_with_gemini(profile_data)
+    return api_ok(analysis)
+
+
+@app.post("/jobs/{job_id}/analyze-gap")
+def api_analyze_skill_gap(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    if current_user.role != "candidate":
+        raise HTTPException(status_code=403, detail="Only candidates can analyze skill gaps.")
+    
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
+        
+    profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Candidate profile not found.")
+        
+    candidate_skills = ", ".join(
+        skill.get("name", "") if isinstance(skill, dict) else str(skill)
+        for skill in (profile.skills or [])
+    )
+    job_skills = ", ".join(
+        skill.get("name", "") if isinstance(skill, dict) else str(skill)
+        for skill in (job.required_skills or [])
+    )
+    job_desc = job.brief_description or ""
+    
+    analysis = analyze_skill_gap_with_gemini(candidate_skills, job_skills, job_desc)
+    return api_ok(analysis)
 
 
 @app.post("/interviews", response_model=dict)
@@ -1846,10 +1982,13 @@ def mark_messages_read(
     
     return api_ok({"marked_read": True})
 
+from fastapi import BackgroundTasks
+
 @app.post("/applications/{application_id}/messages", response_model=dict)
 def create_message(
     application_id: int,
     payload: MessageCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
@@ -1878,7 +2017,48 @@ def create_message(
     db.commit()
     db.refresh(msg)
     
+    # Send WebSocket message
+    recipient_id = app_obj.candidate_id
+    if current_user.role == "candidate":
+        job = db.query(Job).filter(Job.id == app_obj.job_id).first()
+        if job:
+            recipient_id = job.recruiter_id
+            
+    if recipient_id:
+        manager.dispatch(
+            {
+                "type": "new_message",
+                "application_id": application_id,
+                "message": {
+                    "id": msg.id,
+                    "application_id": msg.application_id,
+                    "sender_id": msg.sender_id,
+                    "content": msg.content,
+                    "is_read": msg.is_read,
+                    "created_at": msg.created_at.isoformat()
+                }
+            },
+            recipient_id
+        )
+    
     return api_ok(MessageOut.model_validate(msg).model_dump())
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket, token: str, db: Session = Depends(get_db)):
+    token_row = db.query(AuthToken).filter(AuthToken.token == token).first()
+    if not token_row or as_utc(token_row.expires_at) < now_utc():
+        await websocket.close(code=1008)
+        return
+        
+    user_id = token_row.user_id
+    await manager.connect(websocket, user_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # Handle incoming ping/pong if needed
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, user_id)
+
 
 
 @app.post("/interactions")

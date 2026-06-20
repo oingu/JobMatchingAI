@@ -128,7 +128,7 @@ class ApplicationCreate(BaseModel):
 
 
 class ApplicationReview(BaseModel):
-    status: Literal["ACCEPTED", "REJECTED", "INTERVIEWING"]
+    status: Literal["ACCEPTED", "REJECTED", "INTERVIEWING", "HIRED"]
 
 
 class InterviewCreate(BaseModel):
@@ -181,3 +181,17 @@ class ApplicationInvite(BaseModel):
 
 class InvitationRespond(BaseModel):
     action: Literal["ACCEPT", "DECLINE"]
+class MockInterviewEvaluate(BaseModel):
+    question: str
+    answer: str
+
+class ResumeAnalysisResponse(BaseModel):
+    score: int
+    formatting_issues: list[str]
+    content_suggestions: list[str]
+    rewrites: list[dict] # { "original": str, "improved": str }
+
+class SkillGapResponse(BaseModel):
+    matching_skills: list[str]
+    missing_skills: list[str]
+    learning_path: list[str]

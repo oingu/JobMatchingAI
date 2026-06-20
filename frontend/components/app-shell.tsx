@@ -52,7 +52,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
-import { clearSession, getSession, subscribeSession, type UserRole } from "@/lib/auth";
+import { getSession, clearSession, subscribeSession, type UserRole } from "@/lib/auth";
+import { useWebSocket } from "@/hooks/use-websocket";
 import { cn } from "@/lib/utils";
 
 type NavItem = { href: string; label: string; icon: React.ReactNode };
@@ -150,6 +151,8 @@ export function AppShell({ role, title, children }: AppShellProps) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
+  const { isConnected, lastMessage } = useWebSocket(session?.token || null);
+
   useEffect(() => {
     if (!session || role === "admin") return;
     let active = true;
@@ -162,78 +165,55 @@ export function AppShell({ role, title, children }: AppShellProps) {
         // silent
       }
     }
-
-    void fetchUnreadCount();
-    const timer = setInterval(() => {
-      void fetchUnreadCount();
-    }, 5000);
-
-    return () => {
-      active = false;
-      clearInterval(timer);
-    };
-  }, [session, role]);
-
-  useEffect(() => {
-    if (!session || role === "admin") return;
-    const currentSession = session;
-    let cancelled = false;
-
-    async function pollNotifications() {
+    
+    async function fetchUnreadNotifCount() {
       try {
-        const res = await apiRequest<{ user_id: number; notifications: Array<{ id: number; title: string; body: string; status: string; created_at: string | null }> }>(
-          `/notifications/${currentSession.userId}?limit=10`,
-          { session: currentSession },
-        );
-        const list = res.data.notifications ?? [];
-        const maxId = list.reduce((max, n) => (n.id > max ? n.id : max), 0);
-
-        // First poll only sets baseline to avoid toast spam on reload/tab switch.
-        if (!hasInitializedNotificationWatermark.current) {
-          hasInitializedNotificationWatermark.current = true;
-          lastSeenNotificationId.current = Math.max(lastSeenNotificationId.current, maxId);
-          return;
-        }
-
-        const target = role === "candidate" ? "/candidate/feed" : "/recruiter/dashboard";
-        for (const n of list) {
-          if (n.id <= lastSeenNotificationId.current) continue;
-          const isMatching =
-            n.title.toLowerCase().includes("matching") ||
-            n.title.toLowerCase().includes("matched");
-          if (!isMatching) continue;
-          if (pathnameRef.current === target) continue;
-          toast(n.title, "info", {
-            actionLabel: "View",
-            onAction: () => router.push(target),
-          });
-        }
-        lastSeenNotificationId.current = Math.max(lastSeenNotificationId.current, maxId);
-
-        // Fetch unread notification count from backend
-        try {
-          const countRes = await apiRequest<{ unread_count: number }>(
-            `/notifications/${currentSession.userId}/unread-count`,
-            { session: currentSession }
-          );
-          if (!cancelled) setUnreadNotifCount(countRes.data.unread_count || 0);
-        } catch {
-          // silent
-        }
+        const res = await apiRequest<{ unread_count: number }>(`/notifications/${session!.userId}/unread-count`, { session });
+        if (active) setUnreadNotifCount(res.data.unread_count || 0);
       } catch {
         // silent
       }
     }
 
-    void pollNotifications();
-    const timer = window.setInterval(() => {
-      if (!cancelled) void pollNotifications();
-    }, 10000);
+    void fetchUnreadCount();
+    void fetchUnreadNotifCount();
+
     return () => {
-      cancelled = true;
-      window.clearInterval(timer);
+      active = false;
     };
-  }, [role, router, session, toast]);
+  }, [session, role]);
+
+  useEffect(() => {
+    if (lastMessage) {
+      window.dispatchEvent(new CustomEvent('ws-message', { detail: lastMessage }));
+      
+      if (lastMessage.type === "new_message") {
+        setUnreadCount((c) => c + 1);
+        const target = role === "candidate" ? "/candidate/applications" : "/recruiter/applications";
+        if (pathnameRef.current !== target && !pathnameRef.current.includes("messages")) {
+          toast("New Message Received", "info", {
+            actionLabel: "View",
+            onAction: () => router.push(target),
+          });
+        }
+      } else if (lastMessage.type === "new_notification") {
+        setUnreadNotifCount((c) => c + 1);
+        const target = role === "candidate" ? "/candidate/feed" : "/recruiter/dashboard";
+        
+        const n = lastMessage.notification;
+        const isMatching =
+            n.title.toLowerCase().includes("matching") ||
+            n.title.toLowerCase().includes("matched");
+            
+        if (isMatching && pathnameRef.current !== target) {
+          toast(n.title, "info", {
+            actionLabel: "View",
+            onAction: () => router.push(target),
+          });
+        }
+      }
+    }
+  }, [lastMessage, role, router, toast]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -283,6 +263,16 @@ export function AppShell({ role, title, children }: AppShellProps) {
                      item.label === "Messages" ? t("nav.messages") :
                      item.label === "Profile" || item.label === "My Profile" ? t("nav.profile") :
                      item.label === "Job Feed" ? t("nav.feed") :
+                     item.label === "Interviews" ? t("nav.interviews") :
+                     item.label === "Saved Jobs" ? t("nav.saved") :
+                     item.label === "Activity" ? t("nav.activity") :
+                     item.label === "Notifications" ? t("nav.notifications") :
+                     item.label === "Help & Support" ? t("nav.help") :
+                     item.label === "My Posts" ? t("nav.posts") :
+                     item.label === "Verification" ? t("nav.verification") :
+                     item.label === "Verifications" ? t("nav.verifications") :
+                     item.label === "Recruiters" ? t("nav.recruiters") :
+                     item.label === "Users" ? t("nav.users") :
                      item.label}
                   </span>
                   {(item.label === "My Applications" || item.label === "Applications") && unreadCount > 0 && (
@@ -310,8 +300,26 @@ export function AppShell({ role, title, children }: AppShellProps) {
         <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border/80 bg-background/80 px-6 backdrop-blur-md">
           <div className="flex items-center gap-3">
             {links.find((l) => l.href === pathname)?.icon || <Briefcase className="h-5 w-5 text-muted-foreground" />}
-            {/* The title prop is passed from pages, which we will translate in pages directly */}
-            <h1 className="text-base font-semibold tracking-tight text-foreground">{title}</h1>
+            {/* The title prop is translated here using the same mapping as the sidebar */}
+            <h1 className="text-base font-semibold tracking-tight text-foreground">
+              {title === "Dashboard" ? t("nav.dashboard") :
+               title === "Jobs" ? t("nav.jobs") :
+               title === "Applications" || title === "My Applications" ? t("nav.applications") :
+               title === "Messages" ? t("nav.messages") :
+               title === "Profile" || title === "My Profile" ? t("nav.profile") :
+               title === "Job Feed" ? t("nav.feed") :
+               title === "Interviews" ? t("nav.interviews") :
+               title === "Saved Jobs" ? t("nav.saved") :
+               title === "Activity" ? t("nav.activity") :
+               title === "Notifications" ? t("nav.notifications") :
+               title === "Help & Support" ? t("nav.help") :
+               title === "My Posts" ? t("nav.posts") :
+               title === "Verification" ? t("nav.verification") :
+               title === "Verifications" ? t("nav.verifications") :
+               title === "Recruiters" ? t("nav.recruiters") :
+               title === "Users" ? t("nav.users") :
+               title}
+            </h1>
           </div>
           <div className="flex items-center gap-4">
             <LanguageToggle />

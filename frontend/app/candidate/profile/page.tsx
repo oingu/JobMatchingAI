@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import Link from "next/link";
-import { Plus, Trash2, Upload, AlertTriangle, BrainCircuit, Sparkles } from "lucide-react";
+import { Plus, Trash2, Upload, AlertTriangle, BrainCircuit, Sparkles, FileText } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { RoleGuard } from "@/components/role-guard";
@@ -15,6 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/toast";
 import { apiRequest, apiUpload } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
@@ -106,6 +108,10 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
   const [savingPublic, setSavingPublic] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+
+  const { t } = useLanguage();
+  const [analyzingResume, setAnalyzingResume] = useState(false);
+  const [resumeAnalysis, setResumeAnalysis] = useState<any>(null);
 
   useEffect(() => {
     (async () => {
@@ -290,6 +296,23 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
     }
   }
 
+  async function handleAnalyzeResume() {
+    setAnalyzingResume(true);
+    setResumeAnalysis(null);
+    try {
+      const res = await apiRequest<any>("/candidate-profiles/me/analyze-resume", {
+        method: "POST",
+        session,
+      });
+      setResumeAnalysis(res.data);
+      toastSuccess("Resume analysis complete!");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Analysis failed.");
+    } finally {
+      setAnalyzingResume(false);
+    }
+  }
+
   // Compute profile strength and suggestions
   const { strength, suggestions } = useMemo(() => {
     let score = 0;
@@ -402,10 +425,19 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
           </CardContent>
         </Card>
 
-        {/* Two-column layout */}
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className="w-full">
+        <Tabs defaultValue="profile" className="w-full">
+          <TabsList className="mb-6 grid w-full max-w-[400px] grid-cols-2">
+            <TabsTrigger value="profile">Profile Details</TabsTrigger>
+            <TabsTrigger value="analysis" className="gap-2">
+              <Sparkles className="h-4 w-4 text-indigo-500" />
+              {t("candidate.apps.resume_analysis")}
+            </TabsTrigger>
+          </TabsList>
 
-          {/* ── LEFT COLUMN: Matching Profile ── */}
+          <TabsContent value="profile" className="space-y-5">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              {/* ── LEFT COLUMN: Basic Data & CV Upload ── */}
           <div className="space-y-5">
             {/* CV Upload */}
             <Card>
@@ -755,6 +787,114 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
           </div>
 
         </div>
+        </TabsContent>
+
+        <TabsContent value="analysis" className="space-y-5">
+          <Card className="border-indigo-500/20 shadow-sm shadow-indigo-500/10">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg text-indigo-500">
+                    <Sparkles className="h-5 w-5" />
+                    AI Resume Enhancer
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    {t("resume.intro")}
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={handleAnalyzeResume} 
+                  disabled={analyzingResume}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  {analyzingResume ? (
+                    <><BrainCircuit className="mr-2 h-4 w-4 animate-pulse" /> {t("resume.analyzing")}</>
+                  ) : (
+                    <><BrainCircuit className="mr-2 h-4 w-4" /> {t("resume.analyze_btn")}</>
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            {resumeAnalysis && (
+              <CardContent className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                {/* Score */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">{t("resume.score")}</h3>
+                    <span className="text-sm font-bold text-indigo-500">{resumeAnalysis.score} / 100</span>
+                  </div>
+                  <Progress value={resumeAnalysis.score} className="h-2" />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Formatting Issues */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-rose-500 flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      {t("resume.formatting_issues")}
+                    </h3>
+                    {resumeAnalysis.formatting_issues?.length > 0 ? (
+                      <ul className="space-y-2">
+                        {resumeAnalysis.formatting_issues.map((issue: string, i: number) => (
+                          <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" />
+                            <span>{issue}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-emerald-500">{t("resume.no_issues")}</p>
+                    )}
+                  </div>
+
+                  {/* Content Suggestions */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-amber-500 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      {t("resume.content_suggestions")}
+                    </h3>
+                    {resumeAnalysis.content_suggestions?.length > 0 ? (
+                      <ul className="space-y-2">
+                        {resumeAnalysis.content_suggestions.map((sugg: string, i: number) => (
+                          <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                            <span>{sugg}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-emerald-500">{t("resume.no_suggestions")}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Rewrites */}
+                {resumeAnalysis.rewrites?.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <Separator />
+                    <h3 className="text-sm font-semibold pt-2">{t("resume.rewrites")}</h3>
+                    <div className="space-y-4">
+                      {resumeAnalysis.rewrites.map((rw: any, i: number) => (
+                        <div key={i} className="rounded-lg border p-3 space-y-2 text-sm">
+                          <div className="grid grid-cols-[80px_1fr] gap-2 items-start">
+                            <Badge variant="outline" className="text-rose-500 border-rose-500/30 justify-center">{t("resume.original")}</Badge>
+                            <span className="text-muted-foreground">{rw.original}</span>
+                          </div>
+                          <div className="grid grid-cols-[80px_1fr] gap-2 items-start">
+                            <Badge variant="outline" className="text-emerald-500 border-emerald-500/30 bg-emerald-500/10 justify-center">{t("resume.improved")}</Badge>
+                            <span className="text-foreground font-medium">{rw.improved}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+        </TabsContent>
+        </Tabs>
+      </div>
       </div>
     </AppShell>
   );

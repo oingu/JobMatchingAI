@@ -122,10 +122,21 @@ def _skill_scores_set(
     ]
 
 
+def _skill_scores_gemini(
+    job_skills: SkillList, candidates: list[CandidateProfile],
+) -> list[float]:
+    from app.services.cv_parser_gemini import batch_cosine_with_gemini_embeddings
+    candidate_skills_list = [_parse_skills(c.skills) for c in candidates]
+    # batch_cosine_with_gemini_embeddings returns a list of similarities.
+    # Wait, the signature of batch_cosine_with_gemini_embeddings is:
+    # batch_cosine_with_gemini_embeddings(target_skills: SkillList, list_of_skills: list[SkillList]) -> list[float]
+    return batch_cosine_with_gemini_embeddings(job_skills, candidate_skills_list)
+
 _STRATEGY_FN = {
     "proficiency": _skill_scores_proficiency,
     "tfidf": _skill_scores_tfidf,
     "embedding": _skill_scores_embedding,
+    "gemini": _skill_scores_gemini,
     "set": _skill_scores_set,
 }
 
@@ -227,10 +238,6 @@ def rank_jobs_for_candidate(db: Session, profile: CandidateProfile, top_k: int =
         from app.services.cv_parser_gemini import batch_cosine_with_gemini_embeddings
         job_skills_list = [_parse_skills(j.required_skills) for j in jobs]
         scores = batch_cosine_with_gemini_embeddings(candidate_skills, job_skills_list)
-    elif strategy == "cohere":
-        from app.services.cv_parser_cohere import batch_cosine_with_cohere_embeddings
-        job_skills_list = [_parse_skills(j.required_skills) for j in jobs]
-        scores = batch_cosine_with_cohere_embeddings(candidate_skills, job_skills_list)
     else:
         c_names = {s.get("name", "").lower() for s in candidate_skills if s.get("name")}
         scores = [

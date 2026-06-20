@@ -27,10 +27,12 @@ import {
   Layers,
   Monitor,
   Clock,
+  BrainCircuit,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { RoleGuard } from "@/components/role-guard";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -140,23 +142,23 @@ function toWebsiteUrl(value: string): string {
   return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 }
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: (key: string) => string): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
   const diffMs = now - then;
   const seconds = Math.floor(diffMs / 1000);
-  if (seconds < 60) return "just now";
+  if (seconds < 60) return t("feed.time_now");
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return `${minutes}${t("feed.time_m")}`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return `${hours}${t("feed.time_h")}`;
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return `${days}${t("feed.time_d")}`;
   const weeks = Math.floor(days / 7);
-  if (weeks < 4) return `${weeks}w ago`;
+  if (weeks < 4) return `${weeks}${t("feed.time_w")}`;
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  return `${Math.floor(months / 12)}y ago`;
+  if (months < 12) return `${months}${t("feed.time_mo")}`;
+  return `${Math.floor(months / 12)}${t("feed.time_y")}`;
 }
 
 export default function CandidateFeedPage() {
@@ -168,6 +170,7 @@ export default function CandidateFeedPage() {
 }
 
 function CandidateFeedContent({ session }: { session: SessionData }) {
+  const { t } = useLanguage();
   const { success: toastSuccess, error: toastError } = useToast();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [topK, setTopK] = useState(10);
@@ -180,6 +183,9 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
   const [detailJob, setDetailJob] = useState<JobDetail | null>(null);
   const [detailFeed, setDetailFeed] = useState<FeedItem | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  const [analyzingGap, setAnalyzingGap] = useState(false);
+  const [gapAnalysis, setGapAnalysis] = useState<any>(null);
 
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [applyJobId, setApplyJobId] = useState<number | null>(null);
@@ -294,6 +300,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
     setDetailFeed(feedItem);
     setDetailOpen(true);
     setDetailLoading(true);
+    setGapAnalysis(null);
     void track(feedItem.job_id, "view");
     try {
       const res = await apiRequest<JobDetail>(
@@ -334,20 +341,38 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
     }
   };
 
+  async function handleAnalyzeGap() {
+    if (!detailJob) return;
+    setAnalyzingGap(true);
+    setGapAnalysis(null);
+    try {
+      const res = await apiRequest<any>(`/jobs/${detailJob.id}/analyze-gap`, {
+        method: "POST",
+        session,
+      });
+      setGapAnalysis(res.data);
+      toastSuccess("Skill gap analysis complete!");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Analysis failed.");
+    } finally {
+      setAnalyzingGap(false);
+    }
+  }
+
   return (
     <AppShell role="candidate" title="Job Feed">
       <div className="w-full space-y-5">
         {/* Top-K selector */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">Top matching jobs for you</p>
+            <p className="text-sm font-medium">{t("feed.top_matching") as string}</p>
             <p className="text-xs text-muted-foreground">
-              Ranked by skill match, preferences, and activity
+              {t("feed.ranked_by") as string}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="mr-1 text-xs text-muted-foreground">
-              Show top
+              {t("feed.show_top") as string}
             </span>
             {TOP_K_OPTIONS.map((k) => (
               <Button
@@ -374,10 +399,10 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
             <CardContent className="flex flex-col items-center gap-2 py-12">
               <Briefcase className="h-8 w-8 text-muted-foreground/50" />
               <p className="text-sm font-medium text-muted-foreground">
-                No recommendations yet
+                {t("feed.no_recommendations") as string}
               </p>
               <p className="text-xs text-muted-foreground">
-                Update your profile or upload a CV to get matched.
+                {t("feed.update_profile") as string}
               </p>
             </CardContent>
           </Card>
@@ -418,7 +443,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                       "text-[8px] font-mono uppercase tracking-wider mt-0.5",
                       isPremium ? "text-indigo-500/70" : "text-muted-foreground"
                     )}>
-                      rank
+                      {t("feed.rank") as string}
                     </span>
                   </div>
 
@@ -457,7 +482,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                             </>
                           )}
                           {item.created_at && (
-                            <span>{timeAgo(item.created_at)}</span>
+                            <span>{timeAgo(item.created_at, t as any)}</span>
                           )}
                         </div>
                       </div>
@@ -479,7 +504,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                             "text-[9px] font-medium",
                             isPremium ? "text-white uppercase tracking-wider font-bold" : "text-emerald-600/70 dark:text-emerald-500/70 lowercase tracking-normal"
                           )}>
-                            match
+                            {t("feed.match") as string}
                           </span>
                         </div>
                         <Button 
@@ -522,7 +547,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                               className="mt-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                               onClick={() => toggleBrief(item.job_id)}
                             >
-                              {expandedBriefJobs.has(item.job_id) ? "show less" : "...see more"}
+                              {expandedBriefJobs.has(item.job_id) ? t("feed.show_less") as string : t("feed.see_more") as string}
                             </button>
                           )}
                         </div>
@@ -583,7 +608,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
 
                       {item.end_date && (
                         <p className="mt-2 text-[10px] font-medium text-rose-400/80">
-                          Deadline: {new Date(item.end_date).toLocaleDateString()}
+                          {t("feed.deadline") as string} {new Date(item.end_date).toLocaleDateString()}
                         </p>
                       )}
                     </div>
@@ -597,7 +622,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                           onClick={() => void openDetail(item)}
                         >
                           <Eye className="h-4 w-4" />
-                          <span className="hidden sm:inline">Details</span>
+                          <span className="hidden sm:inline">{t("feed.details") as string}</span>
                         </button>
                         <button
                           type="button"
@@ -610,7 +635,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                           onClick={() => void track(item.job_id, "click")}
                         >
                           <Bookmark className={cn("h-4 w-4", alreadySaved && "fill-emerald-500")} />
-                          <span className="hidden sm:inline">{alreadySaved ? "Saved" : "Save"}</span>
+                          <span className="hidden sm:inline">{alreadySaved ? t("feed.saved") as string : t("feed.save") as string}</span>
                         </button>
                         {item.external_link && (
                           <button
@@ -619,7 +644,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                             onClick={() => handleExternalLinkClick(item.job_id, item.external_link)}
                           >
                             <ExternalLink className="h-4 w-4" />
-                            <span className="hidden sm:inline">Link</span>
+                            <span className="hidden sm:inline">{t("feed.link") as string}</span>
                           </button>
                         )}
                       </div>
@@ -627,7 +652,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                       {alreadyApplied ? (
                         <div className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted-foreground">
                           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                          <span>Applied</span>
+                          <span>{t("feed.applied") as string}</span>
                         </div>
                       ) : (
                         <button
@@ -636,7 +661,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                           onClick={() => openApplyDialog(item.job_id, item.job_title)}
                         >
                           <Send className="h-3.5 w-3.5" />
-                          Apply
+                          {t("feed.apply") as string}
                         </button>
                       )}
                     </div>
@@ -694,6 +719,69 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                           <Progress value={s.value * 100} className="h-1.5" />
                         </div>
                       ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-border/50">
+                      <Button 
+                        variant="secondary" 
+                        className="w-full text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20"
+                        onClick={handleAnalyzeGap}
+                        disabled={analyzingGap}
+                      >
+                        {analyzingGap ? (
+                          <><BrainCircuit className="mr-2 h-4 w-4 animate-pulse" /> {t("gap.analyzing")}</>
+                        ) : (
+                          <><BrainCircuit className="mr-2 h-4 w-4" /> {t("gap.analyze_btn")}</>
+                        )}
+                      </Button>
+                      
+                      {gapAnalysis && (
+                        <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
+                          {/* Matching Skills */}
+                          <div className="space-y-2">
+                            <h5 className="text-xs font-semibold text-emerald-500 flex items-center gap-1.5">
+                              <CheckCircle2 className="h-3 w-3" />
+                              {t("gap.matching")}
+                            </h5>
+                            <div className="flex flex-wrap gap-1.5">
+                              {gapAnalysis.matching_skills?.map((s: string) => (
+                                <Badge key={s} variant="outline" className="text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10 text-[10px]">
+                                  {s}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {/* Missing Skills */}
+                          <div className="space-y-2">
+                            <h5 className="text-xs font-semibold text-rose-500 flex items-center gap-1.5">
+                              <ShieldAlert className="h-3 w-3" />
+                              {t("gap.missing")}
+                            </h5>
+                            <div className="flex flex-wrap gap-1.5">
+                              {gapAnalysis.missing_skills?.map((s: string) => (
+                                <Badge key={s} variant="outline" className="text-rose-600 dark:text-rose-400 border-rose-500/30 bg-rose-500/10 text-[10px]">
+                                  {s}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {/* Learning Path */}
+                          <div className="space-y-2 bg-muted/40 p-3 rounded-lg border border-border/50">
+                            <h5 className="text-xs font-semibold flex items-center gap-1.5">
+                              <Sparkles className="h-3 w-3 text-indigo-500" />
+                              {t("gap.learning_path")}
+                            </h5>
+                            <ol className="list-decimal list-outside ml-4 space-y-1">
+                              {gapAnalysis.learning_path?.map((step: string, i: number) => (
+                                <li key={i} className="text-[11px] text-muted-foreground pl-1 leading-relaxed">
+                                  {step}
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
