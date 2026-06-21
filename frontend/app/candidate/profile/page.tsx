@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/toast";
@@ -815,7 +816,34 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
                 </Button>
               </div>
             </CardHeader>
-            {resumeAnalysis && (
+            {analyzingResume ? (
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                  <Skeleton className="h-2 w-full" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                  <div className="space-y-3">
+                    <Skeleton className="h-5 w-40" />
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <Skeleton className="h-5 w-48" />
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                </div>
+              </CardContent>
+            ) : resumeAnalysis && (
               <CardContent className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
                 {/* Score */}
                 <div className="space-y-2">

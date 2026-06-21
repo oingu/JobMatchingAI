@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -159,6 +160,46 @@ function timeAgo(dateStr: string, t: (key: string) => string): string {
   const months = Math.floor(days / 30);
   if (months < 12) return `${months}${t("feed.time_mo")}`;
   return `${Math.floor(months / 12)}${t("feed.time_y")}`;
+}
+
+function AnimatedScore({ value, className }: { value: number, className?: string }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const duration = 1000;
+    const steps = 60;
+    const stepTime = Math.abs(Math.floor(duration / steps));
+    let currentStep = 0;
+
+    const timer = setInterval(() => {
+      currentStep++;
+      const progress = currentStep / steps;
+      // easeOutExpo for smoother ending
+      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      setDisplayValue(Math.round(value * easeProgress));
+
+      if (currentStep >= steps) {
+        clearInterval(timer);
+        setDisplayValue(Math.round(value));
+      }
+    }, stepTime);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  return <span className={className}>{displayValue}%</span>;
+}
+
+function AnimatedProgress({ value, className }: { value: number, className?: string }) {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    // slight delay for stagger effect
+    const timer = setTimeout(() => setProgress(value), 100);
+    return () => clearTimeout(timer);
+  }, [value]);
+
+  return <Progress value={progress} className={cn("transition-all duration-1000 ease-out", className)} />;
 }
 
 export default function CandidateFeedPage() {
@@ -391,8 +432,17 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex gap-4 p-5 rounded-xl border border-border bg-card/10">
+                <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                <div className="space-y-3 flex-1">
+                  <Skeleton className="h-5 w-1/3" />
+                  <Skeleton className="h-4 w-1/4" />
+                  <Skeleton className="h-20 w-full mt-4" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : items.length === 0 ? (
           <Card>
@@ -494,12 +544,13 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                             ? "bg-gradient-to-r from-indigo-500 to-purple-500 animate-pulse shadow-sm border-none" 
                             : "bg-emerald-500/10 border border-emerald-500/20"
                         )}>
-                          <span className={cn(
-                            "text-xs font-bold font-mono",
-                            isPremium ? "text-white" : "text-emerald-600 dark:text-emerald-400"
-                          )}>
-                            {(item.score * 100).toFixed(0)}%
-                          </span>
+                          <AnimatedScore
+                            value={item.score * 100}
+                            className={cn(
+                              "text-sm font-bold font-mono tracking-tight",
+                              isPremium ? "text-white" : "text-emerald-600 dark:text-emerald-500"
+                            )}
+                          />
                           <span className={cn(
                             "text-[9px] font-medium",
                             isPremium ? "text-white uppercase tracking-wider font-bold" : "text-emerald-600/70 dark:text-emerald-500/70 lowercase tracking-normal"
@@ -689,8 +740,23 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
           <Separator />
           <ScrollArea className="flex-1 px-4">
             {detailLoading ? (
-              <div className="flex justify-center py-12">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+              <div className="space-y-6 py-4">
+                <Skeleton className="h-24 w-full rounded-xl" />
+                <div className="space-y-3">
+                  <Skeleton className="h-6 w-1/3" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                </div>
+                <div className="space-y-3">
+                  <Skeleton className="h-6 w-1/4" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 w-20 rounded-full" />
+                    <Skeleton className="h-8 w-24 rounded-full" />
+                    <Skeleton className="h-8 w-16 rounded-full" />
+                  </div>
+                </div>
+                <Skeleton className="h-40 w-full rounded-xl" />
               </div>
             ) : detailJob && detailFeed ? (
               <div className="space-y-5 py-4">
@@ -699,9 +765,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium">Your Match Score</p>
-                      <p className="text-2xl font-bold text-primary">
-                        {(detailFeed.score * 100).toFixed(0)}%
-                      </p>
+                      <AnimatedScore value={detailFeed.score * 100} className="text-2xl font-bold text-primary" />
                     </div>
                     <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
                       {[
@@ -712,11 +776,9 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                         <div key={s.label} className="space-y-1">
                           <div className="flex justify-between text-muted-foreground">
                             <span>{s.label}</span>
-                            <span className="font-medium text-foreground">
-                              {(s.value * 100).toFixed(0)}%
-                            </span>
+                            <AnimatedScore value={s.value * 100} className="font-medium text-foreground" />
                           </div>
-                          <Progress value={s.value * 100} className="h-1.5" />
+                          <AnimatedProgress value={s.value * 100} className="h-1.5" />
                         </div>
                       ))}
                     </div>
