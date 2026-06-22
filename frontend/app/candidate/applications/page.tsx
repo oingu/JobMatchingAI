@@ -52,6 +52,7 @@ import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUi } from "@/contexts/UiContext";
 import { cn } from "@/lib/utils";
 import { MockInterviewDialog } from "@/components/mock-interview-dialog";
 
@@ -146,6 +147,7 @@ export default function MyApplicationsPage() {
 
 function ApplicationsContent({ session }: { session: SessionData }) {
   const { t } = useLanguage();
+  const { glassMode } = useUi();
   const { success: toastSuccess, error: toastError } = useToast();
   const [apps, setApps] = useState<ApplicationItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -257,7 +259,10 @@ function ApplicationsContent({ session }: { session: SessionData }) {
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="mb-8 p-4 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-xl border border-white/30 dark:border-slate-700/30 shadow-[0_4px_30px_rgba(0,0,0,0.05)] flex flex-wrap items-center gap-4"
+        className={cn(
+          "mb-8 p-4 rounded-xl border flex flex-wrap items-center gap-4 transition-colors duration-300",
+          glassMode ? "bg-background/30 backdrop-blur-3xl border-border/40 shadow-[0_4px_30px_rgba(0,0,0,0.05)]" : "bg-card border-border shadow-sm"
+        )}
       >
         <motion.div variants={itemVariants}>
           <StatCard label={t("candidate.apps.total")} value={apps.length} icon={<Briefcase className="w-5 h-5" />} />
@@ -349,10 +354,10 @@ function ApplicationsContent({ session }: { session: SessionData }) {
               <motion.div key={app.id} variants={itemVariants}>
               <Card 
                 className={cn(
-                  "relative overflow-hidden transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-xl group",
+                  "relative overflow-hidden transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-xl group shadow-sm",
                   isPremium 
-                    ? "bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/5 border-indigo-500/30 hover:border-indigo-500/60 hover:shadow-indigo-500/20" 
-                    : "bg-card hover:border-primary/40 hover:shadow-primary/5"
+                    ? (glassMode ? "bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/5 border-indigo-500/30 hover:border-indigo-500/60 hover:shadow-indigo-500/20" : "bg-card border-indigo-500/30 hover:border-indigo-500/60 hover:shadow-indigo-500/20")
+                    : (glassMode ? "bg-background/40 backdrop-blur-xl border border-border/60 hover:bg-accent/30 hover:border-border/80 hover:shadow-primary/5" : "bg-card border-border hover:border-primary/40 hover:shadow-primary/5")
                 )}
               >
                 {/* Decorative background glow for premium cards */}
@@ -700,8 +705,13 @@ function InfoRow({
 }
 
   function StatCard({ label, value, className = "", icon }: { label: string; value: number; className?: string, icon?: React.ReactNode }) {
+    const { glassMode } = useUi();
     return (
-      <div className={cn("flex min-w-[130px] items-center justify-between gap-3 rounded-xl border border-white/40 dark:border-slate-800/50 bg-white/40 dark:bg-slate-950/40 backdrop-blur-md p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:bg-white/60 dark:hover:bg-slate-900/60", className)}>
+      <div className={cn(
+        "flex min-w-[130px] items-center justify-between gap-3 rounded-xl border p-3 transition-all duration-300 hover:shadow-lg hover:-translate-y-1", 
+        glassMode ? "border-border/40 bg-background/20 backdrop-blur-md hover:bg-background/40" : "bg-card border-border hover:bg-accent/40",
+        className
+      )}>
         <div className="flex flex-col">
           <p className="text-[11px] font-semibold uppercase tracking-wider opacity-70">{label}</p>
           <p className="text-2xl font-bold leading-none mt-1">{value}</p>

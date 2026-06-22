@@ -2357,6 +2357,12 @@ def candidate_feed(
             or as_utc(jobs[row.job_id].end_date) >= now_ts
         )
     ]
+    # Fetch candidate skills for computing matched_skills intersection
+    candidate_profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == candidate_id).first()
+    candidate_skill_names: set[str] = set()
+    if candidate_profile and candidate_profile.skills:
+        candidate_skill_names = {s.get("name", "").lower() for s in candidate_profile.skills if s.get("name")}
+
     return api_ok({
         "candidate_id": candidate_id,
         "items": [
@@ -2377,6 +2383,10 @@ def candidate_feed(
                 "work_mode": jobs[row.job_id].work_mode if row.job_id in jobs else "",
                 "employment_type": jobs[row.job_id].employment_type if row.job_id in jobs else "",
                 "required_skills": jobs[row.job_id].required_skills if row.job_id in jobs else [],
+                "matched_skills": [
+                    s.get("name", "") for s in (jobs[row.job_id].required_skills or [])
+                    if s.get("name", "").lower() in candidate_skill_names
+                ] if row.job_id in jobs else [],
                 "company": _get_company_name(db, jobs[row.job_id].recruiter_id) if row.job_id in jobs else "",
                 **(_get_company_contact(db, jobs[row.job_id].recruiter_id) if row.job_id in jobs else {"company_phone": "", "company_website": ""}),
                 "recruiter_verified": _get_recruiter_verified(db, jobs[row.job_id].recruiter_id) if row.job_id in jobs else False,

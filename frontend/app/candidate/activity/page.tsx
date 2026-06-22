@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiRequest, qs } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 type ActivityData = {
   candidate_id: number;
@@ -26,6 +28,7 @@ export default function CandidateActivityPage() {
 }
 
 function CandidateActivityContent({ session }: { session: SessionData }) {
+  const { glassMode } = useUi();
   const [data, setData] = useState<ActivityData | null>(null);
   const [eventType, setEventType] = useState("");
   const [error, setError] = useState("");
@@ -58,7 +61,7 @@ function CandidateActivityContent({ session }: { session: SessionData }) {
         {/* Stats */}
         {data && (
           <div className="grid gap-4 md:grid-cols-2">
-            <Card>
+            <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Status</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
@@ -69,7 +72,7 @@ function CandidateActivityContent({ session }: { session: SessionData }) {
                 </Badge>
               </CardContent>
             </Card>
-            <Card>
+            <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Activity Score</CardTitle>
               </CardHeader>
@@ -102,7 +105,7 @@ function CandidateActivityContent({ session }: { session: SessionData }) {
 
         {/* Logs table */}
         {data && data.logs.length > 0 ? (
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
@@ -129,7 +132,7 @@ function CandidateActivityContent({ session }: { session: SessionData }) {
             </CardContent>
           </Card>
         ) : data ? (
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardContent className="py-12 text-center">
               <p className="text-sm text-muted-foreground">No activity logs yet.</p>
             </CardContent>

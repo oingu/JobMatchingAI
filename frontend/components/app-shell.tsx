@@ -21,11 +21,13 @@ import {
   CalendarDays,
   HelpCircle,
   Megaphone,
+  Wand2,
 } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageToggle } from "@/components/language-toggle";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUi } from "@/contexts/UiContext";
 
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -92,6 +94,141 @@ type AppShellProps = {
   children: React.ReactNode;
 };
 
+// Persist the indicator position across remounts (page navigations)
+let _prevIndicatorRect: { top: number; height: number } | null = null;
+
+// Simple 30-second memory cache to prevent API spam on AppShell remounts during navigation
+const appShellCache = new Map<string, { data: any; time: number }>();
+async function fetchCached<T>(url: string, session: any) {
+  const key = `${url}-${session?.token}`;
+  const now = Date.now();
+  const cached = appShellCache.get(key);
+  if (cached && now - cached.time < 30000) {
+    return cached.data as { data: T };
+  }
+  const res = await apiRequest<T>(url, { session });
+  appShellCache.set(key, { data: res, time: now });
+  return res;
+}
+
+function SlidingIndicator({ links, pathname }: { links: NavItem[]; pathname: string }) {
+  const indicatorRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
+  const edgeRef = useRef<HTMLDivElement>(null);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    const activeEl = document.querySelector(`[data-nav-href="${pathname}"]`) as HTMLElement | null;
+    if (!activeEl) return;
+
+    const nav = activeEl.closest("nav") as HTMLElement | null;
+    if (!nav) return;
+
+    const navRect = nav.getBoundingClientRect();
+    const elRect = activeEl.getBoundingClientRect();
+
+    const newTop = elRect.top - navRect.top;
+    const newHeight = elRect.height;
+
+    const pill = indicatorRef.current;
+    const glow = glowRef.current;
+    const edge = edgeRef.current;
+    if (!pill || !glow || !edge) return;
+
+    // If we have a previous position and it's different → slide from old to new
+    if (_prevIndicatorRect && _prevIndicatorRect.top !== newTop && !hasAnimated.current) {
+      // 1. Instantly set to the OLD position (no transition)
+      const transition = "none";
+      pill.style.transition = transition;
+      glow.style.transition = transition;
+      edge.style.transition = transition;
+
+      pill.style.top = `${_prevIndicatorRect.top}px`;
+      pill.style.height = `${_prevIndicatorRect.height}px`;
+      glow.style.top = `${_prevIndicatorRect.top - 4}px`;
+      glow.style.height = `${_prevIndicatorRect.height + 8}px`;
+      edge.style.top = `${_prevIndicatorRect.top}px`;
+
+      // 2. Force layout recalc, then animate to the NEW position
+      pill.getBoundingClientRect(); // force reflow
+
+      requestAnimationFrame(() => {
+        const slide = "top 400ms cubic-bezier(0.34, 1.56, 0.64, 1), height 250ms ease";
+        pill.style.transition = slide;
+        glow.style.transition = slide;
+        edge.style.transition = slide;
+
+        pill.style.top = `${newTop}px`;
+        pill.style.height = `${newHeight}px`;
+        glow.style.top = `${newTop - 4}px`;
+        glow.style.height = `${newHeight + 8}px`;
+        edge.style.top = `${newTop}px`;
+      });
+    } else {
+      // First load or same position — snap instantly
+      pill.style.transition = "none";
+      glow.style.transition = "none";
+      edge.style.transition = "none";
+
+      pill.style.top = `${newTop}px`;
+      pill.style.height = `${newHeight}px`;
+      glow.style.top = `${newTop - 4}px`;
+      glow.style.height = `${newHeight + 8}px`;
+      edge.style.top = `${newTop}px`;
+    }
+
+    hasAnimated.current = true;
+    _prevIndicatorRect = { top: newTop, height: newHeight };
+  }, [pathname, links]);
+
+  return (
+    <>
+      {/* Glow layer */}
+      <div
+        ref={glowRef}
+        className="absolute pointer-events-none rounded-xl"
+        style={{
+          left: -4,
+          right: -4,
+          opacity: 0.8,
+          background: "radial-gradient(ellipse at 30% 50%, rgba(16,185,129,0.25) 0%, transparent 70%)",
+          filter: "blur(10px)",
+          zIndex: 0,
+        }}
+      />
+      {/* Glass pill body */}
+      <div
+        ref={indicatorRef}
+        className="absolute pointer-events-none rounded-lg"
+        style={{
+          left: 0,
+          right: 0,
+          opacity: 1,
+          background: "linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--accent) / 0.85) 100%)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          border: "1px solid rgba(16,185,129,0.3)",
+          boxShadow: "0 2px 8px hsl(var(--foreground) / 0.08), inset 0 1px 0 rgba(255,255,255,0.1), 0 0 0 1px hsl(var(--border))",
+          zIndex: 0,
+        }}
+      />
+      {/* Top edge highlight */}
+      <div
+        ref={edgeRef}
+        className="absolute pointer-events-none rounded-t-lg"
+        style={{
+          left: 2,
+          right: 2,
+          height: 1,
+          opacity: 0.9,
+          background: "linear-gradient(90deg, transparent 5%, rgba(16,185,129,0.2) 30%, rgba(255,255,255,0.15) 50%, rgba(16,185,129,0.2) 70%, transparent 95%)",
+          zIndex: 1,
+        }}
+      />
+    </>
+  );
+}
+
 export function AppShell({ role, title, children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -127,12 +264,12 @@ export function AppShell({ role, title, children }: AppShellProps) {
     async function fetchAvatar() {
       try {
         if (role === "candidate") {
-          const res = await apiRequest<{ avatar_url?: string } | null>("/candidate-profiles/me", { session });
+          const res = await fetchCached<{ avatar_url?: string } | null>("/candidate-profiles/me", session);
           if (active) {
             setAvatarUrl(res?.data?.avatar_url || null);
           }
         } else if (role === "recruiter") {
-          const res = await apiRequest<{ avatar_url?: string } | null>("/recruiter-profiles/mine", { session });
+          const res = await fetchCached<{ avatar_url?: string } | null>("/recruiter-profiles/mine", session);
           if (active) {
             setAvatarUrl(res?.data?.avatar_url || null);
           }
@@ -150,6 +287,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
 
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const { glassMode, setGlassMode } = useUi();
 
   const { isConnected, lastMessage } = useWebSocket(session?.token || null);
 
@@ -159,7 +297,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
 
     async function fetchUnreadCount() {
       try {
-        const res = await apiRequest<{ unread_count: number }>("/messages/unread-count", { session });
+        const res = await fetchCached<{ unread_count: number }>("/messages/unread-count", session);
         if (active) setUnreadCount(res.data.unread_count || 0);
       } catch {
         // silent
@@ -168,7 +306,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
     
     async function fetchUnreadNotifCount() {
       try {
-        const res = await apiRequest<{ unread_count: number }>(`/notifications/${session!.userId}/unread-count`, { session });
+        const res = await fetchCached<{ unread_count: number }>(`/notifications/${session!.userId}/unread-count`, session);
         if (active) setUnreadNotifCount(res.data.unread_count || 0);
       } catch {
         // silent
@@ -216,9 +354,21 @@ export function AppShell({ role, title, children }: AppShellProps) {
   }, [lastMessage, role, router, toast]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background text-foreground">
+    <div className="flex h-screen overflow-hidden bg-background text-foreground relative">
+      {/* Animated Mesh Gradient Background */}
+      {glassMode && (
+        <div className="mesh-bg">
+          <div className="mesh-blob animate-blob bg-emerald-500 w-96 h-96 top-0 -left-10 mix-blend-screen dark:mix-blend-color-dodge" />
+          <div className="mesh-blob animate-blob animation-delay-2000 bg-indigo-500 w-[500px] h-[500px] top-[20%] left-[30%] mix-blend-screen dark:mix-blend-color-dodge" />
+          <div className="mesh-blob animate-blob animation-delay-4000 bg-purple-500 w-[400px] h-[400px] -bottom-20 -right-20 mix-blend-screen dark:mix-blend-color-dodge" />
+        </div>
+      )}
+
       {/* Sidebar */}
-      <aside className="sticky top-0 flex h-screen w-60 flex-col border-r border-border/80 bg-background/50 backdrop-blur-md select-none">
+      <aside className={cn(
+        "sticky top-0 z-20 flex h-screen w-60 flex-col border-r border-border/40 select-none shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-colors duration-300",
+        glassMode ? "bg-background/30 backdrop-blur-3xl" : "bg-transparent hover:bg-accent/5 border border-border/40"
+      )}>
         <div className="relative flex h-16 shrink-0 items-center gap-2.5 px-5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-card border border-border shadow-inner">
             <Zap className="h-4 w-4 text-emerald-500 fill-emerald-500/10" />
@@ -235,17 +385,19 @@ export function AppShell({ role, title, children }: AppShellProps) {
           <p className="mb-2.5 px-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/80">
             {role === "recruiter" ? t("role.recruiter") : role === "candidate" ? t("role.candidate") : t("role.admin")}
           </p>
-          <nav className="space-y-1">
+          <nav className="relative space-y-1">
+            <SlidingIndicator links={links} pathname={pathname} />
             {links.map((item) => {
               const active = pathname === item.href;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
+                  data-nav-href={item.href}
                   className={cn(
-                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium border transition-all duration-200",
+                    "relative z-10 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium border transition-colors duration-200",
                     active
-                      ? "bg-accent border-border text-accent-foreground shadow-sm shadow-foreground/5"
+                      ? "border-transparent text-accent-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40",
                   )}
                 >
@@ -253,10 +405,6 @@ export function AppShell({ role, title, children }: AppShellProps) {
                     {item.icon}
                   </span>
                   <span>
-                    {/* Map English labels to keys manually or just use a generic mapping if possible,
-                        but to be safe I will map them inline or let's assume we use keys in labels?
-                        Wait, nav labels are hardcoded in the array above. Let's use a mapping function. 
-                        Actually, let's map them by their English label. */}
                     {item.label === "Dashboard" ? t("nav.dashboard") :
                      item.label === "Jobs" ? t("nav.jobs") :
                      item.label === "Applications" || item.label === "My Applications" ? t("nav.applications") :
@@ -296,8 +444,11 @@ export function AppShell({ role, title, children }: AppShellProps) {
       </aside>
 
       {/* Main content */}
-      <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background">
-        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border/80 bg-background/80 px-6 backdrop-blur-md">
+      <main className="flex h-screen flex-1 flex-col overflow-hidden bg-transparent z-10 relative">
+        <header className={cn(
+          "sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border/40 px-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition-colors duration-300",
+          glassMode ? "bg-background/30 backdrop-blur-3xl" : "bg-transparent hover:bg-accent/5 border border-border/40"
+        )}>
           <div className="flex items-center gap-3">
             {links.find((l) => l.href === pathname)?.icon || <Briefcase className="h-5 w-5 text-muted-foreground" />}
             {/* The title prop is translated here using the same mapping as the sidebar */}
@@ -321,7 +472,15 @@ export function AppShell({ role, title, children }: AppShellProps) {
                title}
             </h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => setGlassMode(!glassMode)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-transparent hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors"
+              title={glassMode ? "Disable Glass Effects" : "Enable Glass Effects"}
+            >
+              <Wand2 className={cn("h-4 w-4", glassMode ? "text-emerald-500" : "")} />
+              <span className="sr-only">Toggle Glass Mode</span>
+            </button>
             <LanguageToggle />
             <ThemeToggle />
             <Badge variant="outline" className="capitalize text-xs font-mono text-muted-foreground border-border bg-muted/30 px-2.5 py-0.5">
@@ -405,7 +564,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
             )}
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto p-6 bg-background select-text">{children}</div>
+        <div className="flex-1 overflow-y-auto p-6 bg-transparent select-text">{children}</div>
       </main>
 
       {/* Delete Account Confirmation */}

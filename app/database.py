@@ -6,6 +6,10 @@ from app.config import settings
 engine = create_engine(
     settings.database_url,
     connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {},
+    pool_size=20,
+    max_overflow=30,
+    pool_timeout=60,
+    pool_pre_ping=True,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

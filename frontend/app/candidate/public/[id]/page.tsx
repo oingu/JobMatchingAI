@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { apiRequest } from "@/lib/api";
 import { getSession, type SessionData, type UserRole } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 type CandidatePublic = {
   user_id: number;
@@ -32,6 +34,7 @@ type CandidatePublic = {
 export default function CandidatePublicProfilePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { glassMode } = useUi();
   const [session, setSession] = useState<SessionData | null>(null);
   const [data, setData] = useState<CandidatePublic | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,7 +84,7 @@ export default function CandidatePublicProfilePage() {
         <p className="py-12 text-center text-sm text-muted-foreground">Profile not found.</p>
       ) : (
         <div className="space-y-6">
-          <div className="relative overflow-hidden rounded-xl border">
+          <div className={cn("relative overflow-hidden rounded-xl border transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <div
               className="h-40 w-full bg-gradient-to-r from-slate-100 to-slate-200 bg-cover bg-center"
               style={data.cover_url ? { backgroundImage: `url(${data.cover_url})` } : undefined}
@@ -110,7 +113,7 @@ export default function CandidatePublicProfilePage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
+            <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardContent className="p-5">
                 <h3 className="mb-3 text-base font-semibold">Skills</h3>
                 <div className="flex flex-wrap gap-2">
@@ -123,7 +126,7 @@ export default function CandidatePublicProfilePage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardContent className="p-5">
                 <h3 className="mb-3 text-base font-semibold">Preferences</h3>
                 <p className="text-sm text-muted-foreground">Preferred locations: {data.preferred_locations || "—"}</p>
@@ -132,7 +135,7 @@ export default function CandidatePublicProfilePage() {
             </Card>
           </div>
 
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardContent className="p-5">
               <h3 className="mb-3 inline-flex items-center gap-2 text-base font-semibold">
                 <GraduationCap className="h-4 w-4" /> Education
@@ -146,7 +149,7 @@ export default function CandidatePublicProfilePage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardContent className="p-5">
               <h3 className="mb-3 inline-flex items-center gap-2 text-base font-semibold">
                 <Briefcase className="h-4 w-4" /> Experience

@@ -1,70 +1,86 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 type WebSocketMessage = {
   type: string;
   [key: string]: any;
 };
 
+let globalWs: WebSocket | null = null;
+let globalWsToken: string | null = null;
+const listeners = new Set<(msg: WebSocketMessage) => void>();
+let reconnectTimeout: NodeJS.Timeout | undefined;
+
+function connectGlobal(token: string) {
+  if (globalWsToken === token && globalWs?.readyState === WebSocket.OPEN) return;
+  if (globalWs) {
+    globalWs.onclose = null; // prevent reconnect loop on intentional close
+    globalWs.close();
+  }
+  
+  globalWsToken = token;
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = process.env.NEXT_PUBLIC_API_URL 
+    ? process.env.NEXT_PUBLIC_API_URL.replace(/^http(s)?:\/\//, '') 
+    : "localhost:8000";
+    
+  const wsUrl = `${protocol}//${host}/ws?token=${token}`;
+  globalWs = new WebSocket(wsUrl);
+
+  globalWs.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      listeners.forEach(fn => fn(data));
+    } catch (e) {
+      console.error("Failed to parse websocket message", e);
+    }
+  };
+
+  globalWs.onclose = (event) => {
+    if (event.code !== 1008 && globalWsToken === token) {
+      reconnectTimeout = setTimeout(() => {
+        connectGlobal(token);
+      }, 3000);
+    }
+  };
+
+  globalWs.onerror = () => {
+    globalWs?.close();
+  };
+}
+
 export function useWebSocket(token: string | null) {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
-    if (!token) return;
-
-    function connect() {
-      // Determine ws protocol based on window.location
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      // We assume backend is running on port 8000
-      const host = process.env.NEXT_PUBLIC_API_URL 
-        ? process.env.NEXT_PUBLIC_API_URL.replace(/^http(s)?:\/\//, '') 
-        : "localhost:8000";
-        
-      const wsUrl = `${protocol}//${host}/ws?token=${token}`;
-      
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setIsConnected(true);
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          setLastMessage(data);
-        } catch (e) {
-          console.error("Failed to parse websocket message", e);
-        }
-      };
-
-      ws.onclose = (event) => {
-        setIsConnected(false);
-        if (event.code !== 1008) { // 1008 means invalid token
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, 3000);
-        }
-      };
-
-      ws.onerror = (error) => {
-        ws.close();
-      };
+    if (!token) {
+      if (globalWs) {
+        globalWsToken = null;
+        globalWs.onclose = null;
+        globalWs.close();
+        globalWs = null;
+      }
+      return;
     }
 
-    connect();
+    connectGlobal(token);
+    
+    // Polling connection state for UI
+    const interval = setInterval(() => {
+      setIsConnected(globalWs?.readyState === WebSocket.OPEN);
+    }, 500);
+    setIsConnected(globalWs?.readyState === WebSocket.OPEN);
+
+    const handler = (msg: WebSocketMessage) => {
+      setLastMessage(msg);
+    };
+    listeners.add(handler);
 
     return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      listeners.delete(handler);
+      clearInterval(interval);
     };
   }, [token]);
 

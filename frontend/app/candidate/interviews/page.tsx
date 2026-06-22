@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { CalendarDays, MapPin, Video, Building2 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 type InterviewItem = {
   id: number;
@@ -29,6 +31,7 @@ export default function CandidateInterviewsPage() {
 }
 
 function Content({ session }: { session: SessionData }) {
+  const { glassMode } = useUi();
   const [interviews, setInterviews] = useState<InterviewItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +61,13 @@ function Content({ session }: { session: SessionData }) {
       ) : (
         <div className="space-y-4">
           {interviews.map((interview) => (
-            <Card key={interview.id}>
+            <Card 
+              key={interview.id}
+              className={cn(
+                "transition-all duration-300 shadow-sm",
+                glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 hover:bg-accent/30 hover:shadow-md" : "bg-transparent hover:bg-accent/5 hover:border-primary/40 border border-border/40"
+              )}
+            >
               <CardContent className="flex items-start gap-4 p-5">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <CalendarDays className="h-6 w-6" />

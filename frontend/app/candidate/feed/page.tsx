@@ -33,6 +33,7 @@ import {
 import { AppShell } from "@/components/app-shell";
 import { RoleGuard } from "@/components/role-guard";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUi } from "@/contexts/UiContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TiltCard } from "@/components/ui/tilt-card";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -83,6 +85,7 @@ type FeedItem = {
   work_mode: string;
   employment_type: string;
   required_skills: SkillItem[];
+  matched_skills: string[];
   company: string;
   company_avatar_url: string;
   company_phone: string;
@@ -162,6 +165,19 @@ function timeAgo(dateStr: string, t: (key: string) => string): string {
   return `${Math.floor(months / 12)}${t("feed.time_y")}`;
 }
 
+function deadlineCountdown(dateStr: string): { text: string; urgent: boolean } {
+  const now = new Date();
+  const deadline = new Date(dateStr);
+  const diffMs = deadline.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return { text: "Expired", urgent: true };
+  if (diffDays === 0) return { text: "🔴 Expires today!", urgent: true };
+  if (diffDays === 1) return { text: "⏰ 1 day left to apply", urgent: true };
+  if (diffDays <= 3) return { text: `⏰ ${diffDays} days left to apply`, urgent: true };
+  if (diffDays <= 7) return { text: `📅 ${diffDays} days left`, urgent: false };
+  return { text: `📅 Deadline: ${deadline.toLocaleDateString()}`, urgent: false };
+}
+
 function AnimatedScore({ value, className }: { value: number, className?: string }) {
   const [displayValue, setDisplayValue] = useState(0);
 
@@ -212,6 +228,7 @@ export default function CandidateFeedPage() {
 
 function CandidateFeedContent({ session }: { session: SessionData }) {
   const { t } = useLanguage();
+  const { glassMode } = useUi();
   const { success: toastSuccess, error: toastError } = useToast();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [topK, setTopK] = useState(10);
@@ -403,12 +420,18 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
   return (
     <AppShell role="candidate" title="Job Feed">
       <div className="w-full space-y-5">
-        {/* Top-K selector */}
+        {/* Personalized greeting */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">{t("feed.top_matching") as string}</p>
-            <p className="text-xs text-muted-foreground">
-              {t("feed.ranked_by") as string}
+            <h2 className="text-lg font-bold text-foreground">
+              Hi {session.name?.split(" ").pop() || "there"} 👋
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {loading
+                ? "Finding matching jobs for you..."
+                : items.length > 0
+                  ? `${items.length} jobs match your profile today`
+                  : "No matching jobs found yet"}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -467,13 +490,19 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                 <div
                   key={`${item.job_id}-${idx}`}
                   style={{ animationDelay: `${idx * 80}ms`, animationFillMode: "both" }}
-                  className={cn(
-                    "animate-in fade-in slide-in-from-bottom-4 duration-400 rounded-xl relative flex overflow-hidden group transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl",
-                    isPremium 
-                      ? "bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/5 border border-indigo-500/30 hover:border-indigo-500/60 hover:shadow-indigo-500/20" 
-                      : "bg-card/10 border border-border hover:bg-accent/40 hover:border-border/80 hover:shadow-foreground/5"
-                  )}
+                  className="animate-in fade-in slide-in-from-bottom-4 duration-400"
                 >
+                  <TiltCard
+                    intensity={isPremium ? 8 : 4}
+                    popOutChildren={false}
+                    innerClassName="flex w-full"
+                    className={cn(
+                      "rounded-xl relative flex overflow-hidden group transition-all duration-300 shadow-sm",
+                      isPremium 
+                        ? (glassMode ? "bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/5 border border-indigo-500/30 hover:border-indigo-500/60 hover:shadow-indigo-500/20" : "bg-transparent border border-indigo-500/30 hover:border-indigo-500/60 hover:shadow-indigo-500/20 hover:bg-indigo-500/5")
+                        : (glassMode ? "bg-background/40 backdrop-blur-xl border border-border/60 hover:bg-accent/30 hover:border-border/80 hover:shadow-foreground/5" : "bg-transparent hover:bg-accent/5 hover:border-primary/40 hover:shadow-primary/5 border border-border")
+                    )}
+                  >
                   {/* Decorative background glow for premium cards */}
                   {isPremium && (
                     <div className="absolute -right-20 -top-20 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors duration-500 z-0 pointer-events-none" />
@@ -586,7 +615,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                       </div>
 
                       {item.brief_description && (
-                        <div className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                        <div className="mt-2 text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
                           <p>
                             {expandedBriefJobs.has(item.job_id) || item.brief_description.length <= BRIEF_PREVIEW_LIMIT
                               ? item.brief_description
@@ -602,6 +631,17 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                             </button>
                           )}
                         </div>
+                      )}
+
+                      {/* ── Match reason ── */}
+                      {item.matched_skills?.length > 0 && (
+                        <p className="mt-2 text-[11px] text-indigo-500 dark:text-indigo-400 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3 shrink-0" />
+                          <span>
+                            Matched: {item.matched_skills.slice(0, 3).join(", ")}
+                            {item.matched_skills.length > 3 && ` và ${item.matched_skills.length - 3} kỹ năng khác`}
+                          </span>
+                        </p>
                       )}
 
                       {/* ── Tags ── */}
@@ -657,11 +697,17 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                         )}
                       </div>
 
-                      {item.end_date && (
-                        <p className="mt-2 text-[10px] font-medium text-rose-400/80">
-                          {t("feed.deadline") as string} {new Date(item.end_date).toLocaleDateString()}
-                        </p>
-                      )}
+                      {item.end_date && (() => {
+                        const dl = deadlineCountdown(item.end_date);
+                        return (
+                          <p className={cn(
+                            "mt-2 text-[10px] font-semibold",
+                            dl.urgent ? "text-rose-500 animate-pulse" : "text-muted-foreground"
+                          )}>
+                            {dl.text}
+                          </p>
+                        );
+                      })()}
                     </div>
 
                     {/* ── Action bar ── */}
@@ -717,6 +763,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                       )}
                     </div>
                   </div>
+                  </TiltCard>
                 </div>
               );
             })}
@@ -737,7 +784,6 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                 : "Loading…"}
             </SheetDescription>
           </SheetHeader>
-          <Separator />
           <ScrollArea className="flex-1 px-4">
             {detailLoading ? (
               <div className="space-y-6 py-4">
@@ -935,7 +981,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                   <>
                     <div className="space-y-2">
                       <h4 className="text-sm font-semibold">Brief Description</h4>
-                      <p className="text-sm text-muted-foreground">{detailJob.brief_description}</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-line">{detailJob.brief_description}</p>
                     </div>
                     <Separator />
                   </>

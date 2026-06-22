@@ -4,8 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Info, Calculator, Star, Zap, CheckCircle2 } from "lucide-react";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 export function HelpContent() {
+  const { glassMode } = useUi();
   return (
     <div className="space-y-6">
       <div className="mb-8">
@@ -16,7 +19,7 @@ export function HelpContent() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+        <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
               <Calculator className="h-5 w-5 text-indigo-500" />
@@ -36,7 +39,7 @@ export function HelpContent() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
               <Star className="h-5 w-5 text-amber-500" />
@@ -67,9 +70,29 @@ export function HelpContent() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className={cn("md:col-span-2 transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              AI Career Coach & Mock Interviews
+            </CardTitle>
+            <CardDescription>Leverage AI to land your dream job</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground grid md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="font-semibold text-foreground mb-1">Resume Review & Skill Gap</h3>
+              <p>Our AI analyzes your profile against market demands and gives you personalized feedback. It identifies missing skills for your target roles and suggests courses or learning paths.</p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground mb-1">Interactive Mock Interviews</h3>
+              <p>Practice with our voice/text-enabled AI interviewer. It asks contextual questions based on the specific job you're targeting and your declared skills, then scores your performance and provides improvement tips.</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <Card className="mt-6">
+        <Card className={cn("mt-6 transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-yellow-500" />
@@ -94,6 +117,12 @@ export function HelpContent() {
               <AccordionTrigger>How do I chat or schedule an interview?</AccordionTrigger>
               <AccordionContent className="text-muted-foreground">
                 Messaging and interview scheduling are unlocked <strong>only after</strong> a Recruiter has reviewed and "Accepted" a Candidate's application. Once accepted, both parties can access the chat interface directly from the Applications tab.
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="item-4">
+              <AccordionTrigger>Why is my Activity Score decreasing?</AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                The platform uses a <strong>Time Decay Model</strong>. If you are inactive for several days, your activity score gradually decreases to prioritize candidates who are currently actively looking for jobs. Log in, apply, or update your profile to build a Streak and boost your score!
               </AccordionContent>
             </AccordionItem>
           </Accordion>

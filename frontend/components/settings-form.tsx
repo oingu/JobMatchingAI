@@ -11,6 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
 import { getSession, setSession, type SessionData, type UserRole } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 type ProfileData = {
   name: string;
@@ -25,6 +27,7 @@ type ProfileData = {
 
 export function SettingsForm({ session, role }: { session: SessionData; role: UserRole }) {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { glassMode } = useUi();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -112,7 +115,7 @@ export function SettingsForm({ session, role }: { session: SessionData; role: Us
   return (
     <div className="space-y-6 max-w-2xl">
       {/* Personal Info */}
-      <Card>
+      <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <User className="h-5 w-5 text-muted-foreground" />
@@ -177,7 +180,7 @@ export function SettingsForm({ session, role }: { session: SessionData; role: Us
       </Card>
 
       {/* Change Password */}
-      <Card>
+      <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <Lock className="h-5 w-5 text-muted-foreground" />

@@ -18,9 +18,11 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUi } from "@/contexts/UiContext";
 import { useToast } from "@/components/toast";
 import { apiRequest, apiUpload } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 
 interface SkillEntry { name: string; level: number }
 
@@ -78,6 +80,7 @@ export default function CandidateProfilePage() {
 
 function CandidateProfileContent({ session }: { session: SessionData }) {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { glassMode } = useUi();
   const [skills, setSkills] = useState<SkillEntry[]>([]);
   const [experienceLevel, setExperienceLevel] = useState("junior");
   const [locations, setLocations] = useState("");
@@ -346,8 +349,44 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
   if (!profileLoaded) {
     return (
       <AppShell role="candidate" title="My Profile">
-        <div className="flex justify-center py-12">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+        <div className="space-y-4 w-full">
+          {/* Top bar skeleton */}
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-9 w-32" />
+          </div>
+          
+          {/* Profile Strength Gamification skeleton */}
+          <Card className="border-border shadow-sm">
+            <CardContent className="p-4 flex flex-col sm:flex-row items-center gap-5">
+              <Skeleton className="h-20 w-20 rounded-full shrink-0" />
+              <div className="flex-1 space-y-3 w-full">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-4 w-full max-w-md" />
+                <div className="flex flex-wrap gap-2 mt-2">
+                   <Skeleton className="h-8 w-full max-w-xs rounded-md" />
+                   <Skeleton className="h-8 w-full max-w-xs rounded-md" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tabs skeleton */}
+          <div className="mb-6 pt-4">
+            <Skeleton className="h-10 w-full max-w-[400px] rounded-lg" />
+          </div>
+
+          {/* Grid skeleton */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+             <div className="space-y-5">
+               <Skeleton className="h-[300px] w-full rounded-xl" />
+               <Skeleton className="h-[400px] w-full rounded-xl" />
+             </div>
+             <div className="space-y-5">
+               <Skeleton className="h-[500px] w-full rounded-xl" />
+               <Skeleton className="h-[200px] w-full rounded-xl" />
+             </div>
+          </div>
         </div>
       </AppShell>
     );
@@ -441,7 +480,7 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
               {/* ── LEFT COLUMN: Basic Data & CV Upload ── */}
           <div className="space-y-5">
             {/* CV Upload */}
-            <Card>
+            <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Upload CV</CardTitle>
                 <CardDescription>Upload a PDF to auto-extract skills, experience, and preferences.</CardDescription>
@@ -557,7 +596,7 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
             )}
 
             {/* Skills & Proficiency */}
-            <Card>
+            <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Skills &amp; Proficiency</CardTitle>
                 <CardDescription>Each skill has a proficiency level (1–5) used for weighted matching.</CardDescription>
@@ -619,7 +658,7 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
             </Card>
 
             {/* Profile Details (Matching Preferences) */}
-            <Card>
+            <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Matching Preferences</CardTitle>
                 <CardDescription>Your preferences for job matching.</CardDescription>
@@ -711,7 +750,7 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
 
           {/* ── RIGHT COLUMN: Public Profile ── */}
           <div className="space-y-5">
-            <Card>
+            <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Public Profile</CardTitle>
                 <CardDescription>This section is visible to recruiters (LinkedIn-style).</CardDescription>
@@ -928,5 +967,3 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
   );
 }
 
-// Add cn utility directly here if missing, otherwise use the imported one.
-import { cn } from "@/lib/utils";

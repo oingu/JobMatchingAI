@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 type NotificationItem = { title: string; body: string; status: string };
 
@@ -21,6 +23,7 @@ export default function CandidateNotificationsPage() {
 }
 
 function NotificationsContent({ session }: { session: SessionData }) {
+  const { glassMode } = useUi();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -57,7 +60,7 @@ function NotificationsContent({ session }: { session: SessionData }) {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
           </div>
         ) : items.length === 0 ? (
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardContent className="flex flex-col items-center gap-2 py-12">
               <BellOff className="h-8 w-8 text-muted-foreground/50" />
               <p className="text-sm font-medium text-muted-foreground">No notifications yet</p>
@@ -68,7 +71,7 @@ function NotificationsContent({ session }: { session: SessionData }) {
           </Card>
         ) : (
           items.map((item, idx) => (
-            <Card key={idx}>
+            <Card key={idx} className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardContent className="flex items-start gap-3 p-4">
                 <div className="mt-0.5 rounded-md bg-muted p-2">
                   <Bell className="h-4 w-4 text-muted-foreground" />

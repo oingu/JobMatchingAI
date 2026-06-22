@@ -462,7 +462,6 @@ function MyPostsContent({ session }: { session: SessionData }) {
               candidates once the start date arrives.
             </SheetDescription>
           </SheetHeader>
-          <Separator />
           <ScrollArea className="flex-1 px-4">
             <CreateJobForm session={session} onSuccess={onJobCreated} />
           </ScrollArea>
@@ -484,7 +483,6 @@ function MyPostsContent({ session }: { session: SessionData }) {
               Update the job details. Matching will be re-triggered for this job.
             </SheetDescription>
           </SheetHeader>
-          <Separator />
           <ScrollArea className="flex-1 px-4">
             {editJob && (
               <EditJobForm
@@ -516,7 +514,6 @@ function MyPostsContent({ session }: { session: SessionData }) {
               Review candidates who applied for this position.
             </SheetDescription>
           </SheetHeader>
-          <Separator />
           <ScrollArea className="flex-1 px-4">
             {applicantsJobId && (
               <ApplicantsList

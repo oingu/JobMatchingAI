@@ -134,7 +134,7 @@ def _process_job_created(db: Session, event: Event) -> None:
         candidate = db.query(User).filter(User.id == score.candidate_id).first()
         if candidate:
             recruiter_summary_lines.append(
-                f"- {candidate.name} | score {score.final_score:.3f} | {candidate.email or 'N/A'} | {candidate.phone or 'N/A'}"
+                f"- {candidate.name} | Match: {score.final_score * 100:.0f}% | {candidate.email or 'N/A'} | {candidate.phone or 'N/A'}"
             )
         if candidate and not candidate.is_online:
             recruiter_profile = db.query(RecruiterProfile).filter(RecruiterProfile.user_id == job.recruiter_id).first()
@@ -167,7 +167,7 @@ def _process_job_created(db: Session, event: Event) -> None:
                 user_id=candidate.id,
                 title=f"New matching job: {job.title}",
                 body=(
-                    f"Score: {score.final_score:.3f}. A job may match your profile.\n\n"
+                    f"Match: {score.final_score * 100:.0f}%. A job may match your profile.\n\n"
                     f"{_job_summary_block(job, job_link_override=tracked_job_link)}\n"
                     f"{_company_contact_block(db, job.recruiter_id, recruiter_name, website_override=tracked_website)}"
                 ),
@@ -180,7 +180,7 @@ def _process_job_created(db: Session, event: Event) -> None:
             user_id=recruiter.id,
             title=f"Candidates matched your new job: {job.title}",
             body=(
-                f"Top matched candidates (threshold {NOTIF_THRESHOLD:.2f}):\n"
+                f"Top matched candidates (threshold {NOTIF_THRESHOLD * 100:.0f}%):\n"
                 + "\n".join(recruiter_summary_lines[:5])
                 + f"\n\n{_job_summary_block(job)}"
             ),
@@ -223,7 +223,7 @@ def _process_candidate_profile_updated(db: Session, event: Event) -> None:
                 title="New candidate matched your jobs",
                 body=(
                     f"Candidate matched your post.\n"
-                    f"Best score: {score.final_score:.3f}\n\n"
+                    f"Match: {score.final_score * 100:.0f}%\n\n"
                     f"{_job_summary_block(job)}\n\n"
                     f"{_candidate_contact_block(candidate)}\n"
                     f"{_candidate_profile_block(candidate_profile)}"
@@ -268,7 +268,7 @@ def _process_candidate_profile_updated(db: Session, event: Event) -> None:
             user_id=candidate.id,
             title=f"New matching job: {candidate_best_job.title}",
             body=(
-                f"Best score: {candidate_best_score:.3f}\n\n"
+                f"Match: {candidate_best_score * 100:.0f}%\n\n"
                 f"{_job_summary_block(candidate_best_job, job_link_override=tracked_job_link)}\n"
                 f"{_company_contact_block(db, candidate_best_job.recruiter_id, best_recruiter_name, website_override=tracked_website)}"
             ),

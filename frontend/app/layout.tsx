@@ -5,6 +5,7 @@ import { ViewTransitions } from 'next-view-transitions';
 import { ToastProvider } from "@/components/toast";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { UiProvider } from "@/contexts/UiContext";
 import "./globals.css";
 
 const inter = Inter({
@@ -32,9 +33,11 @@ export default function RootLayout({
       <html lang="en" className={`${inter.variable} ${geistMono.variable}`} suppressHydrationWarning>
         <body className="min-h-screen bg-background font-sans antialiased">
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-            <LanguageProvider>
-              <ToastProvider>{children}</ToastProvider>
-            </LanguageProvider>
+            <UiProvider>
+              <LanguageProvider>
+                <ToastProvider>{children}</ToastProvider>
+              </LanguageProvider>
+            </UiProvider>
           </ThemeProvider>
         </body>
       </html>

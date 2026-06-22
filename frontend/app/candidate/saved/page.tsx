@@ -42,6 +42,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 type SkillItem = { name: string; level: number };
 
@@ -125,6 +127,7 @@ export default function SavedJobsPage() {
 
 function SavedJobsContent({ session }: { session: SessionData }) {
   const { success: toastSuccess, error: toastError } = useToast();
+  const { glassMode } = useUi();
   const [jobs, setJobs] = useState<SavedJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [appliedJobs, setAppliedJobs] = useState<Set<number>>(new Set());
@@ -219,7 +222,7 @@ function SavedJobsContent({ session }: { session: SessionData }) {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
           </div>
         ) : jobs.length === 0 ? (
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardContent className="flex flex-col items-center gap-2 py-12">
               <Bookmark className="h-8 w-8 text-muted-foreground/50" />
               <p className="text-sm font-medium text-muted-foreground">
@@ -234,7 +237,13 @@ function SavedJobsContent({ session }: { session: SessionData }) {
         ) : (
           <div className="space-y-3">
             {jobs.map((job) => (
-              <Card key={job.id} className="overflow-hidden">
+              <Card 
+                key={job.id} 
+                className={cn(
+                  "overflow-hidden transition-all duration-300",
+                  glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 hover:bg-accent/30 shadow-sm hover:shadow-md" : "bg-transparent hover:bg-accent/5 hover:border-primary/40 border border-border/40"
+                )}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 space-y-3">

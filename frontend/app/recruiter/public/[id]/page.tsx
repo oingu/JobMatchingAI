@@ -230,9 +230,9 @@ export default function RecruiterPublicProfilePage() {
             </Card>
           </div>
 
-          <Card className="border-zinc-800 bg-zinc-950/20 backdrop-blur-md">
+          <Card>
             <CardContent className="p-6">
-              <h3 className="mb-4 text-lg font-bold tracking-tight bg-gradient-to-r from-zinc-200 to-zinc-400 bg-clip-text text-transparent">
+              <h3 className="mb-4 text-lg font-bold tracking-tight">
                 Open / Recent Jobs
               </h3>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -241,32 +241,32 @@ export default function RecruiterPublicProfilePage() {
                     <div
                       key={j.id}
                       onClick={() => openJobDetail(j.id)}
-                      className="group relative cursor-pointer overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-4 transition-all duration-300 hover:border-zinc-700 hover:bg-zinc-900/40 hover:shadow-lg hover:shadow-zinc-950/20 hover:-translate-y-0.5 active:scale-[0.98]"
+                      className="group relative cursor-pointer overflow-hidden rounded-xl border border-border bg-card p-4 transition-all duration-300 hover:border-primary/40 hover:bg-accent/50 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 to-indigo-500/10 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-violet-500/5 to-indigo-500/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                       <div className="relative flex flex-col justify-between h-full gap-2">
                         <div>
                           <div className="flex items-start justify-between gap-2">
-                            <p className="font-semibold text-zinc-100 group-hover:text-violet-400 transition-colors duration-200">
+                            <p className="font-semibold text-foreground group-hover:text-primary transition-colors duration-200">
                               {j.title}
                             </p>
-                            <span className="text-[10px] text-violet-400 font-medium opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                              Chi tiết →
+                            <span className="text-[10px] text-primary font-medium opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0 shrink-0">
+                              Detail →
                             </span>
                           </div>
-                          <p className="text-sm text-zinc-400 inline-flex items-center gap-1 mt-1">
-                            <MapPin className="h-3.5 w-3.5 text-zinc-500" />
+                          <p className="text-sm text-muted-foreground inline-flex items-center gap-1 mt-1">
+                            <MapPin className="h-3.5 w-3.5" />
                             {j.location || "Remote"}
                           </p>
                           <div className="flex flex-wrap gap-1.5 mt-2">
-                            {j.domain && <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-400">{j.domain}</Badge>}
-                            {j.work_mode && <Badge variant="outline" className="text-[10px] capitalize border-zinc-700 text-zinc-400">{j.work_mode}</Badge>}
-                            {j.employment_type && <Badge variant="outline" className="text-[10px] capitalize border-zinc-700 text-zinc-400">{j.employment_type}</Badge>}
+                            {j.domain && <Badge variant="outline" className="text-[10px]">{j.domain}</Badge>}
+                            {j.work_mode && <Badge variant="outline" className="text-[10px] capitalize">{j.work_mode}</Badge>}
+                            {j.employment_type && <Badge variant="outline" className="text-[10px] capitalize">{j.employment_type}</Badge>}
                           </div>
                         </div>
 
                         {(j.start_date || j.end_date) && (
-                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-zinc-900/80 text-[11px] text-zinc-500">
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border text-[11px] text-muted-foreground">
                             {j.start_date && (
                               <span>Bắt đầu: {new Date(j.start_date).toLocaleDateString()}</span>
                             )}
@@ -279,7 +279,7 @@ export default function RecruiterPublicProfilePage() {
                     </div>
                   ))
                 ) : (
-                  <div className="col-span-full py-8 text-center text-sm text-zinc-500 border border-dashed border-zinc-800 rounded-lg">
+                  <div className="col-span-full py-8 text-center text-sm text-muted-foreground border border-dashed border-border rounded-lg">
                     No active job posts available.
                   </div>
                 )}
