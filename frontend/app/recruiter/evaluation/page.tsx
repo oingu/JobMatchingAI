@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 type EvalData = {
   recommendation_quality: { precision_at_k: number; recall_at_k: number };
@@ -27,6 +29,7 @@ export default function EvaluationPage() {
 }
 
 function EvaluationContent({ session }: { session: SessionData }) {
+  const { glassMode } = useUi();
   const [data, setData] = useState<EvalData | null>(null);
   const [strategyInfo, setStrategyInfo] = useState<StrategyInfo | null>(null);
   const [error, setError] = useState("");
@@ -58,7 +61,7 @@ function EvaluationContent({ session }: { session: SessionData }) {
       {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
 
       {strategyInfo && (
-        <Card className="mb-6">
+        <Card className={cn("mb-6 transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Matching Strategy</CardTitle>
           </CardHeader>
@@ -80,14 +83,14 @@ function EvaluationContent({ session }: { session: SessionData }) {
               { label: "CTR", value: data.engagement.ctr },
               { label: "Apply Rate", value: data.engagement.apply_rate },
             ].map((m) => (
-              <Card key={m.label}>
+              <Card key={m.label} className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
                 <CardHeader className="pb-2"><CardTitle className="text-xs uppercase text-muted-foreground">{m.label}</CardTitle></CardHeader>
                 <CardContent><p className="text-2xl font-bold">{m.value.toFixed(4)}</p></CardContent>
               </Card>
             ))}
           </div>
 
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardContent className="h-72 pt-6">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>

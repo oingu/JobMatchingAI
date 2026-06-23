@@ -30,9 +30,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
 import { cn } from "@/lib/utils";
 
 type AppItem = {
@@ -77,12 +79,13 @@ const statuses: FilterStatus[] = ["ALL", "PENDING", "ACCEPTED", "INTERVIEWING", 
 export default function RecruiterApplicationsPage() {
   return (
     <RoleGuard allowedRole="recruiter">
-      {(session) => <Content session={session} />}
+      {(session) => <ApplicationsContent session={session} />}
     </RoleGuard>
   );
 }
 
-function Content({ session }: { session: SessionData }) {
+function ApplicationsContent({ session }: { session: SessionData }) {
+  const { glassMode } = useUi();
   const { success: toastSuccess, error: toastError } = useToast();
   const [apps, setApps] = useState<AppItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -332,7 +335,7 @@ function Content({ session }: { session: SessionData }) {
           {filtered.map((app) => {
             const cfg = STATUS_CFG[app.status] ?? STATUS_CFG.PENDING;
             return (
-              <Card key={app.id}>
+              <Card key={app.id} className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
                 <CardContent className="flex items-start gap-4 p-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Briefcase className="h-5 w-5" />
@@ -570,8 +573,9 @@ function Content({ session }: { session: SessionData }) {
 }
 
 function StatCard({ label, value, className }: { label: string; value: number; className?: string }) {
+  const { glassMode } = useUi();
   return (
-    <Card>
+    <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
       <CardContent className="p-4 text-center">
         <p className={`text-2xl font-bold ${className ?? ""}`}>{value}</p>
         <p className="text-xs text-muted-foreground">{label}</p>

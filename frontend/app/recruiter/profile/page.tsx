@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
 import { apiRequest, apiUpload } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 type Mine = {
   id: number;
@@ -35,6 +37,7 @@ export default function RecruiterProfilePage() {
 }
 
 function Content({ session }: { session: SessionData }) {
+  const { glassMode } = useUi();
   const { success, error } = useToast();
   const [loading, setLoading] = useState(true);
   const [companyAddress, setCompanyAddress] = useState("");
@@ -134,7 +137,7 @@ function Content({ session }: { session: SessionData }) {
               <Link href={`/recruiter/public/${session.userId}`}>View as Public</Link>
             </Button>
           </div>
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardHeader>
               <CardTitle>Recruiter Public Profile</CardTitle>
               <CardDescription>This information is shown to candidates.</CardDescription>

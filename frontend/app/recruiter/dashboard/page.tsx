@@ -17,6 +17,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 type Rec = {
   candidate_id: number;
@@ -48,6 +50,7 @@ export default function RecruiterDashboardPage() {
 
 function RecruiterDashboardContent({ session }: { session: SessionData }) {
   const { t } = useLanguage();
+  const { glassMode } = useUi();
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -87,7 +90,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
       <div className="space-y-6">
         {/* Stats */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{t("recruiter.dashboard.total_jobs")}</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -96,7 +99,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
               <p className="text-2xl font-bold">{rows.length}</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{t("recruiter.dashboard.total_matches")}</CardTitle>
             </CardHeader>
@@ -106,7 +109,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">{t("recruiter.dashboard.avg_score")}</CardTitle>
             </CardHeader>
@@ -164,7 +167,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
           </div>
         ) : rows.length === 0 ? (
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <p className="text-sm font-medium text-muted-foreground">{t("recruiter.dashboard.no_jobs")}</p>
               <p className="mt-1 text-xs text-muted-foreground">{t("recruiter.dashboard.post_first")}</p>
@@ -172,7 +175,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
           </Card>
         ) : (
           rows.map((job) => (
-            <Card key={job.job_id}>
+            <Card key={job.job_id} className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">{job.title}</CardTitle>
@@ -273,7 +276,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
           <ScrollArea className="flex-1 px-4">
             {selected && (
               <div className="space-y-5 py-4">
-                <Card className="border border-border ring-0 shadow-none">
+                <Card className={cn("border border-border ring-0 shadow-none transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl" : "bg-transparent hover:bg-accent/5")}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium">Match Score</p>

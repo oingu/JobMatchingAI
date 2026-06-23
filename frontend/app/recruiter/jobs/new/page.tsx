@@ -52,6 +52,8 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 interface SkillEntry {
   name: string;
@@ -103,6 +105,7 @@ export default function MyPostsPage() {
 }
 
 function MyPostsContent({ session }: { session: SessionData }) {
+  const { glassMode } = useUi();
   const { success: toastSuccess, error: toastError } = useToast();
   const [jobs, setJobs] = useState<JobItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,7 +186,7 @@ function MyPostsContent({ session }: { session: SessionData }) {
     <AppShell role="recruiter" title="My Posts">
       {/* Stats row */}
       <div className="mb-6 grid grid-cols-3 gap-4">
-        <Card>
+        <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -194,7 +197,7 @@ function MyPostsContent({ session }: { session: SessionData }) {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900">
               <Clock className="h-4 w-4 text-blue-600" />
@@ -205,7 +208,7 @@ function MyPostsContent({ session }: { session: SessionData }) {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
               <Calendar className="h-4 w-4 text-gray-500" />
@@ -254,7 +257,7 @@ function MyPostsContent({ session }: { session: SessionData }) {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : jobs.length === 0 ? (
-        <Card>
+        <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Briefcase className="mb-3 h-10 w-10 text-muted-foreground/40" />
             <p className="font-medium">No posts yet</p>
@@ -266,7 +269,7 @@ function MyPostsContent({ session }: { session: SessionData }) {
       ) : (
         <div className="space-y-3">
           {jobs.map((job) => (
-            <Card key={job.id}>
+            <Card key={job.id} className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 space-y-2">
@@ -544,12 +547,13 @@ type ApplicantItem = {
 };
 
 function ApplicantsList({
-  session,
   jobId,
+  session,
 }: {
-  session: SessionData;
   jobId: number;
+  session: SessionData;
 }) {
+  const { glassMode } = useUi();
   const { success: toastSuccess, error: toastError } = useToast();
   const [applicants, setApplicants] = useState<ApplicantItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -611,7 +615,7 @@ function ApplicantsList({
   return (
     <div className="space-y-3 py-4">
       {applicants.map((app) => (
-        <Card key={app.id} className="border border-border ring-0 shadow-none">
+        <Card key={app.id} className={cn("border border-border ring-0 shadow-none transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl" : "bg-transparent hover:bg-accent/5")}>
           <CardContent className="p-4 space-y-3">
             <div className="flex items-start justify-between gap-2">
               <div>

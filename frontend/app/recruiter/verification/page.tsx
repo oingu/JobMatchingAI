@@ -21,6 +21,8 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 type ProfileData = {
   id: number;
@@ -48,6 +50,7 @@ export default function VerificationPage() {
 }
 
 function Content({ session }: { session: SessionData }) {
+  const { glassMode } = useUi();
   const { success: toastSuccess, error: toastError } = useToast();
   const [profile, setProfile] = useState<ProfileData>(null);
   const [loading, setLoading] = useState(true);
@@ -128,7 +131,7 @@ function Content({ session }: { session: SessionData }) {
   return (
     <AppShell role="recruiter" title="Verification">
       {/* Current status */}
-      <Card className="mb-6">
+      <Card className={cn("mb-6 transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
         <CardContent className="flex items-center gap-4 p-6">
           <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-muted ${cfg.color}`}>
             {cfg.icon}
@@ -154,7 +157,7 @@ function Content({ session }: { session: SessionData }) {
 
       {/* Info when verified */}
       {status === "VERIFIED" && (
-        <Card>
+        <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
           <CardContent className="p-6 text-center">
             <CheckCircle2 className="mx-auto h-12 w-12 text-green-600 mb-3" />
             <h3 className="text-lg font-semibold">Your company is verified!</h3>
@@ -167,7 +170,7 @@ function Content({ session }: { session: SessionData }) {
 
       {/* Info when pending */}
       {status === "PENDING_REVIEW" && (
-        <Card>
+        <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
           <CardContent className="p-6 text-center">
             <Clock className="mx-auto h-12 w-12 text-blue-600 mb-3" />
             <h3 className="text-lg font-semibold">Under Review</h3>
@@ -188,7 +191,7 @@ function Content({ session }: { session: SessionData }) {
       {(status === "UNVERIFIED" || status === "REJECTED") && (
         <>
           {status === "REJECTED" && profile && (
-            <Card className="mb-4 border-destructive/50">
+            <Card className={cn("mb-4 border-destructive/50 transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardContent className="p-4">
                 <p className="text-sm text-destructive font-medium">
                   Your previous submission was rejected. Please review the feedback and try again.
@@ -200,7 +203,7 @@ function Content({ session }: { session: SessionData }) {
             </Card>
           )}
 
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-1">Submit Verification</h3>
               <p className="text-sm text-muted-foreground mb-4">

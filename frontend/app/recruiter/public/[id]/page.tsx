@@ -36,6 +36,8 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/toast";
 import { apiRequest } from "@/lib/api";
 import { getSession, type SessionData, type UserRole } from "@/lib/auth";
+import { useUi } from "@/contexts/UiContext";
+import { cn } from "@/lib/utils";
 
 type RecruiterPublic = {
   user_id: number;
@@ -63,6 +65,7 @@ function toWebsiteUrl(value: string): string {
 export default function RecruiterPublicProfilePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { glassMode } = useUi();
   const { success, error } = useToast();
   const [session, setSession] = useState<SessionData | null>(null);
   const [data, setData] = useState<RecruiterPublic | null>(null);
@@ -201,7 +204,7 @@ export default function RecruiterPublicProfilePage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
+            <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardContent className="p-5">
                 <h3 className="mb-3 text-base font-semibold">Company Overview</h3>
                 {data.overview?.length ? data.overview.map((o, idx) => (
@@ -213,7 +216,7 @@ export default function RecruiterPublicProfilePage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
               <CardContent className="p-5">
                 <h3 className="mb-3 text-base font-semibold">Job Locations Map</h3>
                 {mapQuery ? (
@@ -230,7 +233,7 @@ export default function RecruiterPublicProfilePage() {
             </Card>
           </div>
 
-          <Card>
+          <Card className={cn("transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border-border/60 shadow-sm" : "bg-transparent hover:bg-accent/5 border border-border/40")}>
             <CardContent className="p-6">
               <h3 className="mb-4 text-lg font-bold tracking-tight">
                 Open / Recent Jobs
