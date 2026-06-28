@@ -807,7 +807,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
             ) : detailJob && detailFeed ? (
               <div className="space-y-5 py-4">
                 {/* Match score */}
-                <Card className="border border-border ring-0 shadow-none">
+                <Card className={cn("border border-border ring-0 shadow-none transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl" : "bg-transparent hover:bg-accent/5")}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium">Your Match Score</p>

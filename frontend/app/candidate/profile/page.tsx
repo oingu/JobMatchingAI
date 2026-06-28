@@ -357,7 +357,7 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
           </div>
           
           {/* Profile Strength Gamification skeleton */}
-          <Card className="border-border shadow-sm">
+          <Card className={cn("border-border shadow-sm transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl" : "bg-transparent border-border/40")}>
             <CardContent className="p-4 flex flex-col sm:flex-row items-center gap-5">
               <Skeleton className="h-20 w-20 rounded-full shrink-0" />
               <div className="flex-1 space-y-3 w-full">
@@ -404,7 +404,7 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
         </div>
 
         {/* Profile Strength Gamification */}
-        <Card className="bg-gradient-to-r from-indigo-500/10 via-background to-purple-500/10 border-indigo-500/20 shadow-sm relative overflow-hidden group">
+        <Card className={cn("shadow-sm relative overflow-hidden group transition-colors duration-300", glassMode ? "bg-gradient-to-r from-indigo-500/10 via-background to-purple-500/10 backdrop-blur-xl border border-indigo-500/30" : "bg-transparent border border-indigo-500/30 hover:bg-indigo-500/5")}>
           <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none group-hover:from-indigo-500/20 transition-colors duration-500" />
           <CardContent className="p-4 relative z-10 flex flex-col sm:flex-row items-center gap-5">
             {/* Circular Progress */}
@@ -523,7 +523,7 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
 
             {/* Extraction Result (conditional) */}
             {extraction && (
-              <Card className="border-emerald-500/20 bg-emerald-950/5 backdrop-blur-md">
+              <Card className={cn("transition-colors duration-300", glassMode ? "border-emerald-500/20 bg-emerald-950/5 backdrop-blur-md" : "bg-transparent border border-emerald-500/40 hover:bg-emerald-500/5")}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base text-zinc-100">Extraction Result</CardTitle>
@@ -830,7 +830,7 @@ function CandidateProfileContent({ session }: { session: SessionData }) {
         </TabsContent>
 
         <TabsContent value="analysis" className="space-y-5">
-          <Card className="border-indigo-500/20 shadow-sm shadow-indigo-500/10">
+          <Card className={cn("shadow-sm shadow-indigo-500/10 transition-colors duration-300", glassMode ? "bg-background/40 backdrop-blur-xl border border-indigo-500/30" : "bg-transparent hover:bg-indigo-500/5 border border-indigo-500/30")}>
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div>
