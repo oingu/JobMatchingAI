@@ -367,6 +367,19 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
         actor_user_id=user.id,
         detail={"ip": client_ip},
     )
+    
+    # Log the login interaction for behavior tracking
+    db.add(InteractionLog(
+        user_id=user.id,
+        event_type="login",
+        event_metadata={"ip": client_ip},
+    ))
+    db.commit()
+    
+    # Re-calculate the activity score instantly
+    if user.role == "candidate":
+        update_user_behavior_state(db, user.id)
+
     return api_ok({"token": token, "user_id": user.id, "name": user.name, "email": user.email, "role": user.role, "email_verified": user.email_verified})
 
 
