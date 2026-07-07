@@ -19,6 +19,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { apiRequest } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  LineChart,
+  Line
+} from "recharts";
+
 type Stats = {
   total_users: number;
   candidates: number;
@@ -49,6 +62,16 @@ type Stats = {
       precision_at_k: number;
       recall_at_k: number;
     };
+  };
+  funnel: {
+    views: number;
+    clicks: number;
+    applies: number;
+    interviews: number;
+  };
+  trending_skills: {
+    demand: { name: string; count: number }[];
+    supply: { name: string; count: number }[];
   };
 };
 
@@ -208,6 +231,87 @@ function Content({ session }: { session: SessionData }) {
                       </p>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Section: Analytics & Insights */}
+          <div className="grid gap-6 lg:grid-cols-2 mt-6">
+            {/* Conversion Funnel Card */}
+            <Card className="border-border bg-card/20 backdrop-blur-md">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="p-2 bg-blue-500/10 rounded-lg text-blue-600 dark:text-blue-400">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Phễu Chuyển đổi Tuyển dụng</h3>
+                    <p className="text-xs text-muted-foreground">Hành trình của ứng viên từ lượt xem đến phỏng vấn</p>
+                  </div>
+                </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={[
+                        { name: "Lượt xem", count: stats.funnel.views },
+                        { name: "Click", count: stats.funnel.clicks },
+                        { name: "Ứng tuyển", count: stats.funnel.applies },
+                        { name: "Phỏng vấn", count: stats.funnel.interviews },
+                      ]}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#333" horizontal={false} />
+                      <XAxis type="number" stroke="#888" />
+                      <YAxis dataKey="name" type="category" width={80} stroke="#888" />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid #333', borderRadius: '8px' }}
+                        itemStyle={{ color: '#fff' }}
+                      />
+                      <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={32} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Trending Skills Card */}
+            <Card className="border-border bg-card/20 backdrop-blur-md">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="p-2 bg-orange-500/10 rounded-lg text-orange-600 dark:text-orange-400">
+                    <Percent className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground">Lỗ hổng Kỹ năng (Skill Gap)</h3>
+                    <p className="text-xs text-muted-foreground">Top Kỹ năng Doanh nghiệp cần (Demand) vs Ứng viên có (Supply)</p>
+                  </div>
+                </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={stats.trending_skills.demand.map((d) => {
+                        const supplyMatch = stats.trending_skills.supply.find((s) => s.name === d.name);
+                        return {
+                          name: d.name,
+                          Demand: d.count,
+                          Supply: supplyMatch ? supplyMatch.count : 0,
+                        };
+                      }).slice(0, 7)}
+                      margin={{ top: 5, right: 30, left: 20, bottom: 25 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                      <XAxis dataKey="name" stroke="#888" angle={-45} textAnchor="end" height={60} />
+                      <YAxis stroke="#888" />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid #333', borderRadius: '8px' }}
+                      />
+                      <Legend verticalAlign="top" height={36} />
+                      <Bar dataKey="Demand" fill="#f97316" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Supply" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>

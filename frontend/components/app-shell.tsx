@@ -74,7 +74,6 @@ const adminNav: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
   { href: "/admin/verifications", label: "Verifications", icon: <ShieldCheck className="h-4 w-4" /> },
   { href: "/admin/recruiters", label: "Recruiters", icon: <Briefcase className="h-4 w-4" /> },
-  { href: "/admin/users", label: "Users", icon: <Users className="h-4 w-4" /> },
 ];
 
 const candidateNav: NavItem[] = [

@@ -498,271 +498,271 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                     innerClassName="flex w-full"
                     className={cn(
                       "rounded-xl relative flex overflow-hidden group transition-all duration-300 shadow-sm",
-                      isPremium 
+                      isPremium
                         ? (glassMode ? "bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/5 border border-indigo-500/30 hover:border-indigo-500/60 hover:shadow-indigo-500/20" : "bg-transparent border border-indigo-500/30 hover:border-indigo-500/60 hover:shadow-indigo-500/20 hover:bg-indigo-500/5")
                         : (glassMode ? "bg-background/40 backdrop-blur-xl border border-border/60 hover:bg-accent/30 hover:border-border/80 hover:shadow-foreground/5" : "bg-transparent hover:bg-accent/5 hover:border-primary/40 hover:shadow-primary/5 border border-border")
                     )}
                   >
-                  {/* Decorative background glow for premium cards */}
-                  {isPremium && (
-                    <div className="absolute -right-20 -top-20 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors duration-500 z-0 pointer-events-none" />
-                  )}
-                  {/* ── Rank sidebar ── */}
-                  <div className={cn(
-                    "flex w-12 shrink-0 flex-col items-center justify-center border-r select-none relative z-10 transition-colors duration-300",
-                    isPremium ? "bg-indigo-500/5 border-indigo-500/20 group-hover:bg-indigo-500/10" : "bg-muted/20 border-border/60"
-                  )}>
-                    <span className={cn(
-                      "text-sm font-mono font-bold transition-colors duration-300",
-                      isPremium ? "text-indigo-500 group-hover:text-indigo-400" : "text-muted-foreground group-hover:text-primary"
+                    {/* Decorative background glow for premium cards */}
+                    {isPremium && (
+                      <div className="absolute -right-20 -top-20 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors duration-500 z-0 pointer-events-none" />
+                    )}
+                    {/* ── Rank sidebar ── */}
+                    <div className={cn(
+                      "flex w-12 shrink-0 flex-col items-center justify-center border-r select-none relative z-10 transition-colors duration-300",
+                      isPremium ? "bg-indigo-500/5 border-indigo-500/20 group-hover:bg-indigo-500/10" : "bg-muted/20 border-border/60"
                     )}>
-                      #{idx + 1}
-                    </span>
-                    <span className={cn(
-                      "text-[8px] font-mono uppercase tracking-wider mt-0.5",
-                      isPremium ? "text-indigo-500/70" : "text-muted-foreground"
-                    )}>
-                      {t("feed.rank") as string}
-                    </span>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    {/* ── Post header (company info) ── */}
-                    <div className="flex items-start gap-3 p-5 pb-0">
-                      <Avatar className="h-10 w-10 border border-border shrink-0 mt-0.5">
-                        <AvatarImage src={item.company_avatar_url || undefined} alt={item.company || "Company"} />
-                        <AvatarFallback className="bg-muted text-xs font-bold text-muted-foreground">
-                          {(item.company || "C").slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          {item.recruiter_id ? (
-                            <Link
-                              href={`/recruiter/public/${item.recruiter_id}`}
-                              className="text-sm font-semibold text-foreground/90 hover:text-foreground transition-colors truncate"
-                            >
-                              {item.company || `Recruiter #${item.recruiter_id}`}
-                            </Link>
-                          ) : (
-                            <span className="text-sm font-semibold text-foreground/90 truncate">
-                              {item.company || "Unknown Company"}
-                            </span>
-                          )}
-                          {item.recruiter_verified && (
-                            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                          {item.location && (
-                            <>
-                              <span>{item.location}</span>
-                              <span className="text-muted-foreground/50">•</span>
-                            </>
-                          )}
-                          {item.created_at && (
-                            <span>{timeAgo(item.created_at, t as any)}</span>
-                          )}
-                        </div>
-                      </div>
-                      {/* Match score pill & Hide Action */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className={cn(
-                          "flex items-center gap-1 rounded-full px-2.5 py-1",
-                          isPremium 
-                            ? "bg-gradient-to-r from-indigo-500 to-purple-500 animate-pulse shadow-sm border-none" 
-                            : "bg-emerald-500/10 border border-emerald-500/20"
-                        )}>
-                          <AnimatedScore
-                            value={item.score * 100}
-                            className={cn(
-                              "text-sm font-bold font-mono tracking-tight",
-                              isPremium ? "text-white" : "text-emerald-600 dark:text-emerald-500"
-                            )}
-                          />
-                          <span className={cn(
-                            "text-[9px] font-medium",
-                            isPremium ? "text-white uppercase tracking-wider font-bold" : "text-emerald-600/70 dark:text-emerald-500/70 lowercase tracking-normal"
-                          )}>
-                            {t("feed.match") as string}
-                          </span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full shrink-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleHideJob(item.job_id);
-                          }}
-                          title="Hide this job"
-                        >
-                          <EyeOff className="h-3.5 w-3.5" />
-                          <span className="sr-only">Hide job</span>
-                        </Button>
-                      </div>
+                      <span className={cn(
+                        "text-sm font-mono font-bold transition-colors duration-300",
+                        isPremium ? "text-indigo-500 group-hover:text-indigo-400" : "text-muted-foreground group-hover:text-primary"
+                      )}>
+                        #{idx + 1}
+                      </span>
+                      <span className={cn(
+                        "text-[8px] font-mono uppercase tracking-wider mt-0.5",
+                        isPremium ? "text-indigo-500/70" : "text-muted-foreground"
+                      )}>
+                        {t("feed.rank") as string}
+                      </span>
                     </div>
 
-                    {/* ── Post body ── */}
-                    <div className="px-5 pt-3 pb-0 relative z-10">
-                      <div className="flex items-center gap-2">
-                        <h3
-                          className="text-base font-bold text-foreground cursor-pointer group-hover:text-primary transition-colors leading-snug truncate"
-                          onClick={() => void openDetail(item)}
-                        >
-                          {item.job_title}
-                        </h3>
+                    <div className="flex-1 min-w-0">
+                      {/* ── Post header (company info) ── */}
+                      <div className="flex items-start gap-3 p-5 pb-0">
+                        <Avatar className="h-10 w-10 border border-border shrink-0 mt-0.5">
+                          <AvatarImage src={item.company_avatar_url || undefined} alt={item.company || "Company"} />
+                          <AvatarFallback className="bg-muted text-xs font-bold text-muted-foreground">
+                            {(item.company || "C").slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            {item.recruiter_id ? (
+                              <Link
+                                href={`/recruiter/public/${item.recruiter_id}`}
+                                className="text-sm font-semibold text-foreground/90 hover:text-foreground transition-colors truncate"
+                              >
+                                {item.company || `Recruiter #${item.recruiter_id}`}
+                              </Link>
+                            ) : (
+                              <span className="text-sm font-semibold text-foreground/90 truncate">
+                                {item.company || "Unknown Company"}
+                              </span>
+                            )}
+                            {item.recruiter_verified && (
+                              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            {item.location && (
+                              <>
+                                <span>{item.location}</span>
+                                <span className="text-muted-foreground/50">•</span>
+                              </>
+                            )}
+                            {item.created_at && (
+                              <span>{timeAgo(item.created_at, t as any)}</span>
+                            )}
+                          </div>
+                        </div>
+                        {/* Match score pill & Hide Action */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className={cn(
+                            "flex items-center gap-1 rounded-full px-2.5 py-1",
+                            isPremium
+                              ? "bg-gradient-to-r from-indigo-500 to-purple-500 animate-pulse shadow-sm border-none"
+                              : "bg-emerald-500/10 border border-emerald-500/20"
+                          )}>
+                            <AnimatedScore
+                              value={item.score * 100}
+                              className={cn(
+                                "text-sm font-bold font-mono tracking-tight",
+                                isPremium ? "text-white" : "text-emerald-600 dark:text-emerald-500"
+                              )}
+                            />
+                            <span className={cn(
+                              "text-[9px] font-medium",
+                              isPremium ? "text-white uppercase tracking-wider font-bold" : "text-emerald-600/70 dark:text-emerald-500/70 lowercase tracking-normal"
+                            )}>
+                              {t("feed.match") as string}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleHideJob(item.job_id);
+                            }}
+                            title="Hide this job"
+                          >
+                            <EyeOff className="h-3.5 w-3.5" />
+                            <span className="sr-only">Hide job</span>
+                          </Button>
+                        </div>
                       </div>
 
-                      {item.brief_description && (
-                        <div className="mt-2 text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-                          <p>
-                            {expandedBriefJobs.has(item.job_id) || item.brief_description.length <= BRIEF_PREVIEW_LIMIT
-                              ? item.brief_description
-                              : `${item.brief_description.slice(0, BRIEF_PREVIEW_LIMIT)}…`}
+                      {/* ── Post body ── */}
+                      <div className="px-5 pt-3 pb-0 relative z-10">
+                        <div className="flex items-center gap-2">
+                          <h3
+                            className="text-base font-bold text-foreground cursor-pointer group-hover:text-primary transition-colors leading-snug truncate"
+                            onClick={() => void openDetail(item)}
+                          >
+                            {item.job_title}
+                          </h3>
+                        </div>
+
+                        {item.brief_description && (
+                          <div className="mt-2 text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                            <p>
+                              {expandedBriefJobs.has(item.job_id) || item.brief_description.length <= BRIEF_PREVIEW_LIMIT
+                                ? item.brief_description
+                                : `${item.brief_description.slice(0, BRIEF_PREVIEW_LIMIT)}…`}
+                            </p>
+                            {item.brief_description.length > BRIEF_PREVIEW_LIMIT && (
+                              <button
+                                type="button"
+                                className="mt-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={() => toggleBrief(item.job_id)}
+                              >
+                                {expandedBriefJobs.has(item.job_id) ? t("feed.show_less") as string : t("feed.see_more") as string}
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ── Match reason ── */}
+                        {item.matched_skills?.length > 0 && (
+                          <p className="mt-2 text-[11px] text-indigo-500 dark:text-indigo-400 flex items-center gap-1">
+                            <Sparkles className="h-3 w-3 shrink-0" />
+                            <span>
+                              Matched: {item.matched_skills.slice(0, 3).join(", ")}
+                              {item.matched_skills.length > 3 && ` và ${item.matched_skills.length - 3} other skills`}
+                            </span>
                           </p>
-                          {item.brief_description.length > BRIEF_PREVIEW_LIMIT && (
+                        )}
+
+                        {/* ── Tags ── */}
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {item.experience_level && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] capitalize bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 hover:bg-blue-500/20"
+                            >
+                              {item.experience_level}
+                            </Badge>
+                          )}
+                          {item.domain && (
+                            <Badge variant="secondary" className="text-[10px] bg-violet-500/10 text-violet-700 dark:text-violet-400 border border-violet-500/20 hover:bg-violet-500/20">
+                              {item.domain}
+                            </Badge>
+                          )}
+                          {item.work_mode && (
+                            <Badge variant="secondary" className="text-[10px] capitalize bg-muted/60 border border-border/60 text-muted-foreground hover:bg-muted/60">
+                              {item.work_mode}
+                            </Badge>
+                          )}
+                          {item.employment_type && (
+                            <Badge variant="secondary" className="text-[10px] capitalize bg-muted/60 border border-border/60 text-muted-foreground hover:bg-muted/60">
+                              {item.employment_type}
+                            </Badge>
+                          )}
+                          {(item.salary_min > 0 || item.salary_max > 0) && (
+                            <Badge
+                              variant="secondary"
+                              className="gap-0.5 text-[10px] bg-muted/60 border border-border/60 text-muted-foreground hover:bg-muted/60"
+                            >
+                              <DollarSign className="h-2.5 w-2.5" />
+                              {formatSalary(item.salary_min)} – {formatSalary(item.salary_max)}
+                            </Badge>
+                          )}
+                          {item.required_skills?.slice(0, 4).map((s) => (
+                            <Badge
+                              key={s.name}
+                              variant="outline"
+                              className="text-[10px] font-mono border-border text-muted-foreground rounded-md"
+                            >
+                              {s.name}
+                            </Badge>
+                          ))}
+                          {item.required_skills?.length > 4 && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] border-border text-muted-foreground/80 rounded-md"
+                            >
+                              +{item.required_skills.length - 4} more
+                            </Badge>
+                          )}
+                        </div>
+
+                        {item.end_date && (() => {
+                          const dl = deadlineCountdown(item.end_date);
+                          return (
+                            <p className={cn(
+                              "mt-2 text-[10px] font-semibold",
+                              dl.urgent ? "text-rose-500 animate-pulse" : "text-muted-foreground"
+                            )}>
+                              {dl.text}
+                            </p>
+                          );
+                        })()}
+                      </div>
+
+                      {/* ── Action bar ── */}
+                      <div className="flex items-center justify-between border-t border-border mt-4 px-2 py-1.5 relative z-10">
+                        <div className="flex">
+                          <button
+                            type="button"
+                            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-all cursor-pointer"
+                            onClick={() => void openDetail(item)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span className="hidden sm:inline">{t("feed.details") as string}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={cn(
+                              "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-all cursor-pointer",
+                              alreadySaved
+                                ? "text-emerald-500 hover:bg-emerald-500/10"
+                                : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                            )}
+                            onClick={() => void track(item.job_id, "click")}
+                          >
+                            <Bookmark className={cn("h-4 w-4", alreadySaved && "fill-emerald-500")} />
+                            <span className="hidden sm:inline">{alreadySaved ? t("feed.saved") as string : t("feed.save") as string}</span>
+                          </button>
+                          {item.external_link && (
                             <button
                               type="button"
-                              className="mt-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                              onClick={() => toggleBrief(item.job_id)}
+                              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-all cursor-pointer"
+                              onClick={() => handleExternalLinkClick(item.job_id, item.external_link)}
                             >
-                              {expandedBriefJobs.has(item.job_id) ? t("feed.show_less") as string : t("feed.see_more") as string}
+                              <ExternalLink className="h-4 w-4" />
+                              <span className="hidden sm:inline">{t("feed.link") as string}</span>
                             </button>
                           )}
                         </div>
-                      )}
 
-                      {/* ── Match reason ── */}
-                      {item.matched_skills?.length > 0 && (
-                        <p className="mt-2 text-[11px] text-indigo-500 dark:text-indigo-400 flex items-center gap-1">
-                          <Sparkles className="h-3 w-3 shrink-0" />
-                          <span>
-                            Matched: {item.matched_skills.slice(0, 3).join(", ")}
-                            {item.matched_skills.length > 3 && ` và ${item.matched_skills.length - 3} kỹ năng khác`}
-                          </span>
-                        </p>
-                      )}
-
-                      {/* ── Tags ── */}
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {item.experience_level && (
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] capitalize bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 hover:bg-blue-500/20"
-                          >
-                            {item.experience_level}
-                          </Badge>
-                        )}
-                        {item.domain && (
-                          <Badge variant="secondary" className="text-[10px] bg-violet-500/10 text-violet-700 dark:text-violet-400 border border-violet-500/20 hover:bg-violet-500/20">
-                            {item.domain}
-                          </Badge>
-                        )}
-                        {item.work_mode && (
-                          <Badge variant="secondary" className="text-[10px] capitalize bg-muted/60 border border-border/60 text-muted-foreground hover:bg-muted/60">
-                            {item.work_mode}
-                          </Badge>
-                        )}
-                        {item.employment_type && (
-                          <Badge variant="secondary" className="text-[10px] capitalize bg-muted/60 border border-border/60 text-muted-foreground hover:bg-muted/60">
-                            {item.employment_type}
-                          </Badge>
-                        )}
-                        {(item.salary_min > 0 || item.salary_max > 0) && (
-                          <Badge
-                            variant="secondary"
-                            className="gap-0.5 text-[10px] bg-muted/60 border border-border/60 text-muted-foreground hover:bg-muted/60"
-                          >
-                            <DollarSign className="h-2.5 w-2.5" />
-                            {formatSalary(item.salary_min)} – {formatSalary(item.salary_max)}
-                          </Badge>
-                        )}
-                        {item.required_skills?.slice(0, 4).map((s) => (
-                          <Badge
-                            key={s.name}
-                            variant="outline"
-                            className="text-[10px] font-mono border-border text-muted-foreground rounded-md"
-                          >
-                            {s.name}
-                          </Badge>
-                        ))}
-                        {item.required_skills?.length > 4 && (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] border-border text-muted-foreground/80 rounded-md"
-                          >
-                            +{item.required_skills.length - 4} more
-                          </Badge>
-                        )}
-                      </div>
-
-                      {item.end_date && (() => {
-                        const dl = deadlineCountdown(item.end_date);
-                        return (
-                          <p className={cn(
-                            "mt-2 text-[10px] font-semibold",
-                            dl.urgent ? "text-rose-500 animate-pulse" : "text-muted-foreground"
-                          )}>
-                            {dl.text}
-                          </p>
-                        );
-                      })()}
-                    </div>
-
-                    {/* ── Action bar ── */}
-                    <div className="flex items-center justify-between border-t border-border mt-4 px-2 py-1.5 relative z-10">
-                      <div className="flex">
-                        <button
-                          type="button"
-                          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-all cursor-pointer"
-                          onClick={() => void openDetail(item)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span className="hidden sm:inline">{t("feed.details") as string}</span>
-                        </button>
-                        <button
-                          type="button"
-                          className={cn(
-                            "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-all cursor-pointer",
-                            alreadySaved
-                              ? "text-emerald-500 hover:bg-emerald-500/10"
-                              : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
-                          )}
-                          onClick={() => void track(item.job_id, "click")}
-                        >
-                          <Bookmark className={cn("h-4 w-4", alreadySaved && "fill-emerald-500")} />
-                          <span className="hidden sm:inline">{alreadySaved ? t("feed.saved") as string : t("feed.save") as string}</span>
-                        </button>
-                        {item.external_link && (
+                        {alreadyApplied ? (
+                          <div className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted-foreground">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            <span>{t("feed.applied") as string}</span>
+                          </div>
+                        ) : (
                           <button
                             type="button"
-                            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-all cursor-pointer"
-                            onClick={() => handleExternalLinkClick(item.job_id, item.external_link)}
+                            className="flex items-center gap-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white dark:text-zinc-950 text-xs font-semibold px-4 py-1.5 transition-all cursor-pointer active:scale-[0.97] shadow-sm shadow-emerald-500/10"
+                            onClick={() => openApplyDialog(item.job_id, item.job_title)}
                           >
-                            <ExternalLink className="h-4 w-4" />
-                            <span className="hidden sm:inline">{t("feed.link") as string}</span>
+                            <Send className="h-3.5 w-3.5" />
+                            {t("feed.apply") as string}
                           </button>
                         )}
                       </div>
-
-                      {alreadyApplied ? (
-                        <div className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-muted-foreground">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                          <span>{t("feed.applied") as string}</span>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          className="flex items-center gap-1.5 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white dark:text-zinc-950 text-xs font-semibold px-4 py-1.5 transition-all cursor-pointer active:scale-[0.97] shadow-sm shadow-emerald-500/10"
-                          onClick={() => openApplyDialog(item.job_id, item.job_title)}
-                        >
-                          <Send className="h-3.5 w-3.5" />
-                          {t("feed.apply") as string}
-                        </button>
-                      )}
                     </div>
-                  </div>
                   </TiltCard>
                 </div>
               );
@@ -829,8 +829,8 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                       ))}
                     </div>
                     <div className="mt-4 pt-4 border-t border-border/50">
-                      <Button 
-                        variant="secondary" 
+                      <Button
+                        variant="secondary"
                         className="w-full text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20"
                         onClick={handleAnalyzeGap}
                         disabled={analyzingGap}
@@ -841,7 +841,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                           <><BrainCircuit className="mr-2 h-4 w-4" /> {t("gap.analyze_btn")}</>
                         )}
                       </Button>
-                      
+
                       {gapAnalysis && (
                         <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
                           {/* Matching Skills */}
@@ -858,7 +858,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                               ))}
                             </div>
                           </div>
-                          
+
                           {/* Missing Skills */}
                           <div className="space-y-2">
                             <h5 className="text-xs font-semibold text-rose-500 flex items-center gap-1.5">
@@ -873,7 +873,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                               ))}
                             </div>
                           </div>
-                          
+
                           {/* Learning Path */}
                           <div className="space-y-2 bg-muted/40 p-3 rounded-lg border border-border/50">
                             <h5 className="text-xs font-semibold flex items-center gap-1.5">

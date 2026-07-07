@@ -66,7 +66,7 @@ def send_notification(
                 "id": notification.id,
                 "title": notification.title,
                 "body": notification.body,
-                "is_read": notification.is_read,
+                "is_read": notification.status == "READ",
                 "created_at": notification.created_at.isoformat()
             }
         }, user_id)

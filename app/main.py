@@ -62,7 +62,7 @@ from app.services.evaluation import compare_baseline_vs_improved, engagement_met
 from app.services.events import enqueue_event, process_next_event, retry_failed_event
 from app.services.email_tracking import verify_email_click_token
 from app.services.email import build_otp_email, is_email_configured
-from app.utils.email import send_email
+from app.services.email import send_email
 from app.services.rate_limiter import check_rate_limit
 from app.services.security import hash_password
 from app.services.websockets import manager
@@ -999,6 +999,33 @@ def admin_stats(
     engagement = engagement_metrics(db)
     comparison = compare_baseline_vs_improved(db, k=5)
     
+    # Calculate Conversion Funnel
+    views = db.query(InteractionLog).filter(InteractionLog.event_type == "view").count()
+    clicks = db.query(InteractionLog).filter(InteractionLog.event_type == "click").count()
+    applies = db.query(Application).count()
+    interviews = db.query(Interview).count()
+    
+    # Calculate Trending Skills
+    from collections import Counter
+    from app.services.recommendation import _parse_skills
+    
+    demand_counter = Counter()
+    for j in db.query(Job.required_skills).all():
+        skills = _parse_skills(j[0])
+        for s in skills:
+            if s.get("name"):
+                demand_counter[s["name"].lower().strip()] += 1
+                
+    supply_counter = Counter()
+    for c in db.query(CandidateProfile.skills).all():
+        skills = _parse_skills(c[0])
+        for s in skills:
+            if s.get("name"):
+                supply_counter[s["name"].lower().strip()] += 1
+                
+    top_demand = [{"name": k, "count": v} for k, v in demand_counter.most_common(10)]
+    top_supply = [{"name": k, "count": v} for k, v in supply_counter.most_common(10)]
+    
     return api_ok({
         "total_users": total_users,
         "candidates": candidates,
@@ -1013,6 +1040,16 @@ def admin_stats(
         },
         "engagement": engagement,
         "model_comparison": comparison,
+        "funnel": {
+            "views": views,
+            "clicks": clicks,
+            "applies": applies,
+            "interviews": interviews
+        },
+        "trending_skills": {
+            "demand": top_demand,
+            "supply": top_supply
+        }
     })
 
 
@@ -1589,7 +1626,7 @@ def review_application(
             html_content = f"<p>Hi <b>{candidate_user.name}</b>,</p><p>Thank you for applying to the <b>{job.title}</b> position.</p><p>Unfortunately, the recruiter has decided not to move forward with your application at this time.</p><p>We encourage you to keep exploring other opportunities on our platform.</p><p>Best,<br>JobMatch AI Team</p>"
             
         if subject:
-            from app.utils.email import send_email
+            from app.services.email import send_email
             send_email(candidate_user.email, subject, text_content, html_content)
             db.add(Notification(
                 user_id=candidate_user.id,
@@ -1698,7 +1735,7 @@ def invite_candidate(
         subject = f"[JobMatch AI] Invitation to apply for {job.title}"
         text_content = f"Hi {candidate_user.name},\n\nYou have been invited by {current_user.name} to apply for the position of {job.title}.\nPlease log in to JobMatch AI to review the invitation and accept or decline.\n\nBest,\nJobMatch AI Team"
         html_content = f"<p>Hi <b>{candidate_user.name}</b>,</p><p>You have been invited by <b>{current_user.name}</b> to apply for the position of <b>{job.title}</b>.</p><p>Please log in to JobMatch AI to review the invitation and accept or decline.</p><p>Best,<br>JobMatch AI Team</p>"
-        from app.utils.email import send_email
+        from app.services.email import send_email
         send_email(candidate_user.email, subject, text_content, html_content)
     return api_ok({"application_id": app_obj.id, "status": app_obj.status})
 
