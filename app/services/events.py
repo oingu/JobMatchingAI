@@ -118,7 +118,7 @@ def _process_job_created(db: Session, event: Event) -> None:
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         return
-    top_scores = rank_candidates_for_job(db, job, top_k=5)
+    top_scores = rank_candidates_for_job(db, job, top_k=200)
     persist_recommendations(
         db, source_event_id=event.id, scores=top_scores,
         replace_for_job=job.id,

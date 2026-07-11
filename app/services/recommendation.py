@@ -198,7 +198,8 @@ def compute_final_score(skill_match: float, pref_match: float, activity: float) 
 # ---------------------------------------------------------------------------
 
 def rank_candidates_for_job(db: Session, job: Job, top_k: int = 5) -> list[MatchScore]:
-    candidates = [c for c in db.query(CandidateProfile).all() if c.status != "INACTIVE" and c.birth_date]
+    # HACK for demo: Limit to 1000 newest candidates to prevent memory crash with Kaggle data
+    candidates = db.query(CandidateProfile).filter(CandidateProfile.status != "INACTIVE").order_by(CandidateProfile.id.desc()).limit(1000).all()
     job_skills = _parse_skills(job.required_skills)
     skill_scores = _get_skill_scores(job_skills, candidates)
 
@@ -221,8 +222,11 @@ def rank_candidates_for_job(db: Session, job: Job, top_k: int = 5) -> list[Match
 
 
 def rank_jobs_for_candidate(db: Session, profile: CandidateProfile, top_k: int = 5) -> list[MatchScore]:
-    jobs = db.query(Job).all()
-    if not jobs or not profile.birth_date:
+    # HACK for demo: Fetch old demo jobs + newest Kaggle jobs to prevent memory crash but still show both
+    demo_jobs = db.query(Job).filter(Job.id <= 200).all()
+    kaggle_jobs = db.query(Job).order_by(Job.id.desc()).limit(800).all()
+    jobs = demo_jobs + kaggle_jobs
+    if not jobs or not profile.user_id:
         return []
 
     candidate_skills = _parse_skills(profile.skills)

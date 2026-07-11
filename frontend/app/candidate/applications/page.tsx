@@ -157,7 +157,7 @@ function ApplicationsContent({ session }: { session: SessionData }) {
   const [detailApp, setDetailApp] = useState<ApplicationItem | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [chatAppId, setChatAppId] = useState<number | null>(null);
-  const [mockInterviewAppId, setMockInterviewAppId] = useState<string | null>(null);
+  const [mockInterviewJobId, setMockInterviewJobId] = useState<number | null>(null);
 
   async function load() {
     try {
@@ -487,7 +487,7 @@ function ApplicationsContent({ session }: { session: SessionData }) {
                           variant="default"
                           size="sm"
                           className="gap-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
-                          onClick={() => setMockInterviewAppId(app.id.toString())}
+                          onClick={() => setMockInterviewJobId(app.job_id)}
                         >
                           <Bot className="h-3 w-3" /> {t("candidate.apps.mock_interview")}
                         </Button>
@@ -667,11 +667,11 @@ function ApplicationsContent({ session }: { session: SessionData }) {
           </div>
         );
       })()}
-      {mockInterviewAppId && (
+      {mockInterviewJobId && (
         <MockInterviewDialog
-          appId={mockInterviewAppId}
+          jobId={mockInterviewJobId}
           isOpen={true}
-          onClose={() => setMockInterviewAppId(null)}
+          onClose={() => setMockInterviewJobId(null)}
           session={session}
         />
       )}

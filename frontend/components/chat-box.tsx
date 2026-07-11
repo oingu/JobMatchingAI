@@ -149,9 +149,9 @@ export function ChatBox({ applicationId, currentUserId, session, recipientName, 
             </Avatar>
             <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-card"></div>
           </div>
-          <div>
-            <h3 className="font-semibold text-[15px] leading-tight">{recipientName || "User"}</h3>
-            <span className="text-[11px] text-muted-foreground leading-tight">Đang hoạt động</span>
+          <div className="flex flex-col justify-center gap-0.5">
+            <span className="font-semibold text-[14px] leading-none">{recipientName || "User"}</span>
+            <span className="text-[11px] text-muted-foreground leading-none">Đang hoạt động</span>
           </div>
         </div>
         <div className="flex items-center gap-0.5 text-primary">

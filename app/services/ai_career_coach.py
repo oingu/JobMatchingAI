@@ -98,12 +98,14 @@ Identify:
 1. Matching skills: Skills the candidate has that the job requires.
 2. Missing skills: Crucial skills the job requires but the candidate lacks or is weak in.
 3. Learning path: A short, actionable step-by-step guide (3-5 items) on how to bridge the gap quickly.
+4. Recommended courses: 2-3 real links to high-quality courses (e.g., Coursera, Udemy, edX, or YouTube) that address the missing skills. Include "title" and "link".
 
 Return ONLY a valid JSON object matching this schema exactly:
 {{
   "matching_skills": ["skill1", "skill2"],
   "missing_skills": ["skill3", "skill4"],
-  "learning_path": ["Step 1...", "Step 2..."]
+  "learning_path": ["Step 1...", "Step 2..."],
+  "recommended_courses": [{{"title": "Course Name", "link": "https://..."}}]
 }}
 Ensure the output is clean JSON without Markdown formatting blocks (e.g., do not wrap in ```json).
 """

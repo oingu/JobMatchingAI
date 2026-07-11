@@ -244,3 +244,19 @@ class HiddenJob(Base):
 
     candidate = relationship("User", foreign_keys=[candidate_id])
     job = relationship("Job")
+
+class HiddenCandidate(Base):
+    __tablename__ = "hidden_candidates"
+    __table_args__ = (
+        UniqueConstraint("recruiter_id", "job_id", "candidate_id", name="uq_hidden_candidate_rec_job_cand"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    recruiter_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False, index=True)
+    candidate_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=now_utc, nullable=False)
+
+    recruiter = relationship("User", foreign_keys=[recruiter_id])
+    job = relationship("Job")
+    candidate = relationship("User", foreign_keys=[candidate_id])

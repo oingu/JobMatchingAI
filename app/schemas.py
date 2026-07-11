@@ -181,9 +181,15 @@ class ApplicationInvite(BaseModel):
 
 class InvitationRespond(BaseModel):
     action: Literal["ACCEPT", "DECLINE"]
-class MockInterviewEvaluate(BaseModel):
+class QAHistoryItem(BaseModel):
     question: str
     answer: str
+
+class MockInterviewEvaluate(BaseModel):
+    current_question: str
+    current_answer: str
+    history: list[QAHistoryItem] = []
+    language: str = "en"
 
 class ResumeAnalysisResponse(BaseModel):
     score: int
@@ -191,7 +197,15 @@ class ResumeAnalysisResponse(BaseModel):
     content_suggestions: list[str]
     rewrites: list[dict] # { "original": str, "improved": str }
 
+class RecommendedCourse(BaseModel):
+    title: str
+    link: str
+
 class SkillGapResponse(BaseModel):
     matching_skills: list[str]
     missing_skills: list[str]
     learning_path: list[str]
+    recommended_courses: list[RecommendedCourse] = []
+class HideCandidateRequest(BaseModel):
+    job_id: int
+    candidate_id: int

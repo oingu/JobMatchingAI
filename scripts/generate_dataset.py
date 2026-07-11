@@ -63,13 +63,18 @@ def sample_skills_json(min_k: int = 2, max_k: int = 5) -> list[dict]:
 
 
 def main() -> None:
+    import uuid
+    run_id = str(uuid.uuid4())[:6]
     random.seed(42)
 
-    # Remove existing DB and recreate for clean dataset
-    db_path = ROOT / "job_matching.db"
-    if db_path.exists():
-        os.remove(db_path)
-        print(f"Removed existing {db_path}")
+    from app.config import settings
+    # Commented out to append to existing DB
+    # db_url = settings.database_url
+    # if db_url.startswith("sqlite:///./"):
+    #     db_path = ROOT / db_url.replace("sqlite:///./", "")
+    #     if db_path.exists():
+    #         os.remove(db_path)
+    #         print(f"Removed existing {db_path}")
 
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
@@ -80,8 +85,8 @@ def main() -> None:
         # --- Recruiters ---
         for i in range(10):
             user = User(
-                name=f"Recruiter {i + 1}",
-                email=f"recruiter{i + 1}@dataset.local",
+                name=f"Recruiter {i + 1} ({run_id})",
+                email=f"recruiter{i + 1}_{run_id}@dataset.local",
                 password="secret123",
                 role="recruiter",
                 is_online=bool(i % 2),
@@ -90,8 +95,8 @@ def main() -> None:
             db.flush()
             db.add(RecruiterProfile(
                 user_id=user.id,
-                company_name=f"Company {i + 1}",
-                company_website=f"https://company{i+1}.com",
+                company_name=f"Company {i + 1} ({run_id})",
+                company_website=f"https://company{i+1}-{run_id}.com",
                 updated_at=now_utc(),
             ))
             recruiters.append(user)
@@ -109,8 +114,8 @@ def main() -> None:
                 activity = random.uniform(0.2, 0.6)
 
             user = User(
-                name=f"Candidate {i + 1}",
-                email=f"candidate{i + 1}@dataset.local",
+                name=f"Candidate {i + 1} ({run_id})",
+                email=f"candidate{i + 1}_{run_id}@dataset.local",
                 password="secret123",
                 role="candidate",
                 is_online=bool(i % 4 == 0),
@@ -126,6 +131,7 @@ def main() -> None:
                     preferred_salary_min=random.randint(500, 2500),
                     activity_score=round(activity, 3),
                     status=status,
+                    birth_date=f"200{random.randint(0, 5)}-01-01",
                     no_response_streak=random.randint(0, 8) if status != "ACTIVE" else random.randint(0, 2),
                     last_login_at=now_utc() - timedelta(days=days_ago),
                     updated_at=now_utc(),
@@ -157,10 +163,26 @@ def main() -> None:
 
         # --- Interactions (realistic patterns) ---
         # Each candidate views several jobs, clicks some, applies to fewer
+        from app.services.recommendation import preference_match
         interaction_count = 0
         for user in candidates:
-            n_views = random.randint(3, 15)
-            viewed_jobs = random.sample(jobs, min(n_views, len(jobs)))
+            profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
+            
+            # Fast proxy for ranking: sort jobs by preference match
+            scored_jobs = []
+            for job in jobs:
+                p_match = preference_match(profile, job)
+                # Randomize skill match slightly for simulation
+                s_match = random.uniform(0.5, 1.0)
+                base_score = 0.7 * s_match + 0.3 * p_match
+                scored_jobs.append((job, base_score))
+            
+            scored_jobs.sort(key=lambda x: x[1], reverse=True)
+            top_jobs = [j for j, _ in scored_jobs[:20]]
+            
+            n_views = random.randint(3, 10)
+            viewed_jobs = random.sample(top_jobs, min(n_views, len(top_jobs)))
+            
             for job in viewed_jobs:
                 db.add(InteractionLog(
                     user_id=user.id,
@@ -171,8 +193,9 @@ def main() -> None:
                 ))
                 interaction_count += 1
 
-                # 40% chance to click after viewing
-                if random.random() < 0.4:
+                # Click chance heavily depends on activity score
+                click_prob = 0.1 + (profile.activity_score * 0.7)
+                if random.random() < click_prob:
                     db.add(InteractionLog(
                         user_id=user.id,
                         job_id=job.id,
@@ -182,8 +205,9 @@ def main() -> None:
                     ))
                     interaction_count += 1
 
-                    # 30% chance to apply after clicking
-                    if random.random() < 0.3:
+                    # Apply chance also heavily depends on activity score
+                    apply_prob = 0.1 + (profile.activity_score * 0.8)
+                    if random.random() < apply_prob:
                         db.add(InteractionLog(
                             user_id=user.id,
                             job_id=job.id,
@@ -193,8 +217,8 @@ def main() -> None:
                         ))
                         interaction_count += 1
 
-            # Login events
-            for _ in range(random.randint(1, 5)):
+            # Login events proportional to activity
+            for _ in range(int(profile.activity_score * 10) + 1):
                 db.add(InteractionLog(
                     user_id=user.id,
                     job_id=None,

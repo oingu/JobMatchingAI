@@ -9,7 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -22,6 +22,7 @@ from app.models import (
     CandidateProfile,
     EmailVerification,
     Event,
+    HiddenCandidate,
     HiddenJob,
     InteractionLog,
     Interview,
@@ -37,6 +38,7 @@ from app.schemas import (
     ApplicationReview,
     CandidateProfileCreate,
     EventOut,
+    HideCandidateRequest,
     InteractionCreate,
     InterviewCreate,
     InterviewOut,
@@ -167,7 +169,7 @@ async def background_worker() -> None:
         db = SessionLocal()
         try:
             process_next_event(db)
-            update_all_candidates_behavior(db)
+            # update_all_candidates_behavior(db)  # Disabled for demo: Don't run daily decay calculation every 2 seconds on 100k users!
         finally:
             db.close()
         await asyncio.sleep(2)
@@ -1779,23 +1781,17 @@ def respond_to_invitation(
     return api_ok({"application_id": app_obj.id, "status": app_obj.status})
 
 
-from app.services.mock_interview import generate_mock_questions, evaluate_mock_answer
+from app.services.mock_interview import generate_mock_questions, evaluate_and_probe_mock_answer
 
-@app.post("/applications/{application_id}/mock-interview/generate")
+@app.post("/jobs/{job_id}/mock-interview/generate")
 def api_mock_interview_generate(
-    application_id: str,
+    job_id: int,
+    language: str = "en",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     require_role(current_user, "candidate")
-    app_obj = db.query(Application).filter(Application.id == application_id, Application.candidate_id == current_user.id).first()
-    if not app_obj:
-        raise HTTPException(status_code=404, detail="Application not found.")
-    
-    if app_obj.status not in ["ACCEPTED", "INTERVIEWING"]:
-        raise HTTPException(status_code=400, detail="Mock interviews are only available for accepted or interviewing applications.")
-        
-    job = db.query(Job).filter(Job.id == app_obj.job_id).first()
+    job = db.query(Job).filter(Job.id == job_id).first()
     profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == current_user.id).first()
     
     if not job or not profile:
@@ -1807,23 +1803,24 @@ def api_mock_interview_generate(
         for skill in (profile.skills or [])
     )
     
-    questions = generate_mock_questions(job.title, job_desc, candidate_skills)
+    questions = generate_mock_questions(job.title, job_desc, candidate_skills, language=language)
     return api_ok({"questions": questions})
 
-@app.post("/applications/{application_id}/mock-interview/evaluate")
+@app.post("/jobs/{job_id}/mock-interview/evaluate")
 def api_mock_interview_evaluate(
-    application_id: str,
+    job_id: int,
     payload: MockInterviewEvaluate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     require_role(current_user, "candidate")
-    # Verify application belongs to candidate
-    app_obj = db.query(Application).filter(Application.id == application_id, Application.candidate_id == current_user.id).first()
-    if not app_obj:
-        raise HTTPException(status_code=404, detail="Application not found.")
+    
+    job = db.query(Job).filter(Job.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found.")
         
-    result = evaluate_mock_answer(payload.question, payload.answer)
+    history = [item.model_dump() for item in payload.history]
+    result = evaluate_and_probe_mock_answer(payload.current_question, payload.current_answer, history, language=payload.language)
     return api_ok(result)
 
 
@@ -1917,7 +1914,7 @@ def create_interview(
         send_email(
             to_email=candidate.email,
             subject=f"Lịch phỏng vấn mới: {job.title}",
-            body=f"Chào {candidate.name},\n\nBạn có lịch phỏng vấn mới cho vị trí {job.title}.\nThời gian: {payload.scheduled_time.strftime('%Y-%m-%d %H:%M')}\nHình thức: {payload.location_type}\nChi tiết: {payload.location_details}\n\nVui lòng kiểm tra trên hệ thống để biết thêm chi tiết."
+            body_text=f"Chào {candidate.name},\n\nBạn có lịch phỏng vấn mới cho vị trí {job.title}.\nThời gian: {payload.scheduled_time.strftime('%Y-%m-%d %H:%M')}\nHình thức: {payload.location_type}\nChi tiết: {payload.location_details}\n\nVui lòng kiểm tra trên hệ thống để biết thêm chi tiết."
         )
         
     return api_ok({"interview_id": interview.id})
@@ -2295,6 +2292,13 @@ def recruiter_dashboard(
     result = []
     for job in jobs:
         rec_query = db.query(Recommendation).filter(Recommendation.job_id == job.id)
+        
+        hidden_cands = db.query(HiddenCandidate.candidate_id).filter(
+            HiddenCandidate.job_id == job.id,
+            HiddenCandidate.recruiter_id == recruiter_id
+        ).subquery()
+        rec_query = rec_query.filter(Recommendation.candidate_id.notin_(hidden_cands))
+        
         if min_score is not None:
             rec_query = rec_query.filter(Recommendation.final_score >= min_score)
         recommendations = rec_query.order_by(desc(Recommendation.final_score)).limit(effective_top_k).all()
@@ -2316,6 +2320,12 @@ def recruiter_dashboard(
                 "candidate_email": cand_user.email if cand_user else "",
                 "candidate_phone": cand_user.phone if cand_user else "",
                 "candidate_dob": cand_profile.birth_date if cand_profile else "",
+                "candidate_bio": cand_profile.bio if cand_profile else "",
+                "candidate_location": cand_profile.preferred_locations if cand_profile else "",
+                "preferred_domains": cand_profile.preferred_domains if cand_profile else "",
+                "preferred_work_modes": cand_profile.preferred_work_modes if cand_profile else "",
+                "preferred_employment_types": cand_profile.preferred_employment_types if cand_profile else "",
+                "preferred_salary_min": cand_profile.preferred_salary_min if cand_profile else 0,
                 "skills": cand_profile.skills if cand_profile else [],
                 "experience_level": cand_profile.experience_level if cand_profile else "",
                 "skill_match": row.skill_match,
@@ -2339,6 +2349,36 @@ def recruiter_dashboard(
             "top_k": effective_top_k,
         },
     )
+
+@app.post("/recommendations/hide-candidate")
+def hide_candidate(
+    req: HideCandidateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    require_role(current_user, "recruiter")
+    
+    # Verify the job belongs to the recruiter
+    job = db.query(Job).filter(Job.id == req.job_id).first()
+    if not job or job.recruiter_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden action.")
+        
+    existing = db.query(HiddenCandidate).filter(
+        HiddenCandidate.recruiter_id == current_user.id,
+        HiddenCandidate.job_id == req.job_id,
+        HiddenCandidate.candidate_id == req.candidate_id
+    ).first()
+    
+    if not existing:
+        new_hidden = HiddenCandidate(
+            recruiter_id=current_user.id,
+            job_id=req.job_id,
+            candidate_id=req.candidate_id
+        )
+        db.add(new_hidden)
+        db.commit()
+        
+    return api_ok({"message": "Candidate hidden successfully"})
 
 
 @app.post("/feed/candidate/{candidate_id}/hide-job/{job_id}")
@@ -2377,7 +2417,13 @@ def candidate_feed(
     require_role(current_user, "candidate")
     if current_user.id != candidate_id:
         raise HTTPException(status_code=403, detail="Forbidden candidate feed.")
-    rec_query = db.query(Recommendation).filter(Recommendation.candidate_id == candidate_id)
+    now_ts = now_utc()
+    rec_query = (
+        db.query(Recommendation)
+        .join(Job, Recommendation.job_id == Job.id)
+        .filter(Recommendation.candidate_id == candidate_id)
+        .filter(or_(Job.end_date == None, Job.end_date >= now_ts))
+    )
     
     # Exclude jobs the candidate has already applied to or hidden
     applied_job_subquery = db.query(Application.job_id).filter(Application.candidate_id == candidate_id)
@@ -2397,17 +2443,8 @@ def candidate_feed(
         .all()
     )
     jobs = {job.id: job for job in db.query(Job).filter(Job.id.in_([row.job_id for row in recommendations])).all()}
-    now_ts = now_utc()
-    valid_recommendations = [
-        row
-        for row in recommendations
-        if row.job_id in jobs
-        and (
-            jobs[row.job_id].end_date is None
-            or as_utc(jobs[row.job_id].end_date) >= now_ts
-        )
-    ]
-    # Fetch candidate skills for computing matched_skills intersection
+    
+    valid_recommendations = recommendations
     candidate_profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == candidate_id).first()
     candidate_skill_names: set[str] = set()
     if candidate_profile and candidate_profile.skills:

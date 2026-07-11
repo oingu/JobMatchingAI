@@ -22,6 +22,7 @@ import {
   HelpCircle,
   Megaphone,
   Wand2,
+  Menu,
 } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -43,6 +44,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -363,9 +366,9 @@ export function AppShell({ role, title, children }: AppShellProps) {
         </div>
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar (Desktop) */}
       <aside className={cn(
-        "sticky top-0 z-20 flex h-screen w-60 flex-col border-r border-border/40 select-none shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-colors duration-300",
+        "hidden md:flex sticky top-0 z-20 h-screen w-60 flex-col border-r border-border/40 select-none shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-colors duration-300",
         glassMode ? "bg-background/30 backdrop-blur-3xl" : "bg-transparent hover:bg-accent/5 border border-border/40"
       )}>
         <div className="relative flex h-16 shrink-0 items-center gap-2.5 px-5">
@@ -445,11 +448,91 @@ export function AppShell({ role, title, children }: AppShellProps) {
       {/* Main content */}
       <main className="flex h-screen flex-1 flex-col overflow-hidden bg-transparent z-10 relative">
         <header className={cn(
-          "sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border/40 px-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition-colors duration-300",
+          "sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border/40 px-4 sm:px-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition-colors duration-300",
           glassMode ? "bg-background/30 backdrop-blur-3xl" : "bg-transparent hover:bg-accent/5 border border-border/40"
         )}>
           <div className="flex items-center gap-3">
-            {links.find((l) => l.href === pathname)?.icon || <Briefcase className="h-5 w-5 text-muted-foreground" />}
+            <div className="md:hidden">
+              <Sheet>
+                <SheetTrigger render={<Button variant="ghost" size="icon" className="h-9 w-9" />}>
+                  <Menu className="h-5 w-5" />
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[280px] p-0 flex flex-col">
+                  <SheetHeader className="sr-only">
+                    <SheetTitle>Navigation Menu</SheetTitle>
+                  </SheetHeader>
+                  <div className="flex h-16 shrink-0 items-center gap-2.5 px-5 border-b border-border/40">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-card border border-border shadow-inner">
+                      <Zap className="h-4 w-4 text-emerald-500 fill-emerald-500/10" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold tracking-tight text-foreground">JobMatch AI</p>
+                      <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Matching Engine</p>
+                    </div>
+                  </div>
+                  <ScrollArea className="flex-1 px-3 py-4">
+                    <p className="mb-2.5 px-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/80">
+                      {role === "recruiter" ? t("role.recruiter") : role === "candidate" ? t("role.candidate") : t("role.admin")}
+                    </p>
+                    <nav className="space-y-1">
+                      {links.map((item) => {
+                        const active = pathname === item.href;
+                        return (
+                          <SheetTrigger
+                            key={item.href}
+                            render={
+                              <Link
+                                href={item.href}
+                                className={cn(
+                                  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200",
+                                  active
+                                    ? "bg-accent/50 text-emerald-500"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-accent/40",
+                                )}
+                              >
+                                <span>{item.icon}</span>
+                                <span>
+                                  {item.label === "Dashboard" ? t("nav.dashboard") :
+                                   item.label === "Jobs" ? t("nav.jobs") :
+                                   item.label === "Applications" || item.label === "My Applications" ? t("nav.applications") :
+                                   item.label === "Messages" ? t("nav.messages") :
+                                   item.label === "Profile" || item.label === "My Profile" ? t("nav.profile") :
+                                   item.label === "Job Feed" ? t("nav.feed") :
+                                   item.label === "Interviews" ? t("nav.interviews") :
+                                   item.label === "Saved Jobs" ? t("nav.saved") :
+                                   item.label === "Activity" ? t("nav.activity") :
+                                   item.label === "Notifications" ? t("nav.notifications") :
+                                   item.label === "Help & Support" ? t("nav.help") :
+                                   item.label === "My Posts" ? t("nav.posts") :
+                                   item.label === "Verification" ? t("nav.verification") :
+                                   item.label === "Verifications" ? t("nav.verifications") :
+                                   item.label === "Recruiters" ? t("nav.recruiters") :
+                                   item.label === "Users" ? t("nav.users") :
+                                   item.label}
+                                </span>
+                                {(item.label === "My Applications" || item.label === "Applications") && unreadCount > 0 && (
+                                  <span className="ml-auto flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm">
+                                    {unreadCount}
+                                  </span>
+                                )}
+                                {item.label === "Notifications" && unreadNotifCount > 0 && (
+                                  <span className="ml-auto flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm">
+                                    {unreadNotifCount}
+                                  </span>
+                                )}
+                              </Link>
+                            }
+                          />
+                        );
+                      })}
+                    </nav>
+                  </ScrollArea>
+                </SheetContent>
+              </Sheet>
+            </div>
+            <div className="hidden sm:flex items-center">
+              {links.find((l) => l.href === pathname)?.icon || <Briefcase className="h-5 w-5 text-muted-foreground" />}
+            </div>
             {/* The title prop is translated here using the same mapping as the sidebar */}
             <h1 className="text-base font-semibold tracking-tight text-foreground">
               {title === "Dashboard" ? t("nav.dashboard") :
@@ -471,10 +554,10 @@ export function AppShell({ role, title, children }: AppShellProps) {
                title}
             </h1>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-4">
             <button
               onClick={() => setGlassMode(!glassMode)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-transparent hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors"
+              className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-transparent hover:bg-accent hover:text-accent-foreground text-muted-foreground transition-colors"
               title={glassMode ? "Disable Glass Effects" : "Enable Glass Effects"}
             >
               <Wand2 className={cn("h-4 w-4", glassMode ? "text-emerald-500" : "")} />
@@ -482,7 +565,7 @@ export function AppShell({ role, title, children }: AppShellProps) {
             </button>
             <LanguageToggle />
             <ThemeToggle />
-            <Badge variant="outline" className="capitalize text-xs font-mono text-muted-foreground border-border bg-muted/30 px-2.5 py-0.5">
+            <Badge variant="outline" className="hidden sm:inline-flex capitalize text-xs font-mono text-muted-foreground border-border bg-muted/30 px-2.5 py-0.5">
               {role === "recruiter" ? t("role.recruiter") : role === "candidate" ? t("role.candidate") : t("role.admin")}
             </Badge>
             {userName && (

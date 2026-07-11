@@ -13,3 +13,5 @@ DoAn_LaTeX/
 SOICT_DATN_Application_VIE_Template/
 test.db
 *.zip
+*.csv
+*.db

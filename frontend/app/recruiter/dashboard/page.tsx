@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Calendar, Mail, Phone, Target, User, Users } from "lucide-react";
+import { Calendar, Mail, Phone, Target, User, MapPin, EyeOff, Star, Users, Briefcase, DollarSign, Building } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { RoleGuard } from "@/components/role-guard";
@@ -19,6 +19,13 @@ import type { SessionData } from "@/lib/auth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useUi } from "@/contexts/UiContext";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Rec = {
   candidate_id: number;
@@ -26,6 +33,12 @@ type Rec = {
   candidate_email: string;
   candidate_phone: string;
   candidate_dob: string;
+  candidate_bio: string;
+  candidate_location: string;
+  preferred_domains: string;
+  preferred_work_modes: string;
+  preferred_employment_types: string;
+  preferred_salary_min: number;
   skills: { name: string; level: number }[];
   experience_level: string;
   skill_match: number;
@@ -54,7 +67,8 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [topK, setTopK] = useState(20);
+  const [topK, setTopK] = useState(5);
+  const [minScore, setMinScore] = useState(0);
   const [filterStatus, setFilterStatus] = useState<"all" | "unapplied">("unapplied");
   const [detailOpen, setDetailOpen] = useState(false);
   const [selected, setSelected] = useState<{ jobTitle: string; rec: Rec } | null>(null);
@@ -64,7 +78,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
     setLoading(true);
     try {
       const res = await apiRequest<{ recruiter_id: number; jobs: DashboardRow[] }>(
-        `/dashboard/recruiter/${session.userId}?limit=20&top_k=${topK}&filter_status=${filterStatus}`,
+        `/dashboard/recruiter/${session.userId}?limit=20&top_k=${topK}&filter_status=${filterStatus}${minScore > 0 ? `&min_score=${minScore}` : ''}`,
         { session },
       );
       setRows(res.data.jobs);
@@ -78,11 +92,26 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
   useEffect(() => {
     void loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topK, filterStatus]);
+  }, [topK, filterStatus, minScore]);
 
   function openCandidateDetail(jobTitle: string, rec: Rec) {
     setSelected({ jobTitle, rec });
     setDetailOpen(true);
+  }
+
+  async function handleHideCandidate(jobId: number, candidateId: number) {
+    try {
+      await apiRequest("/recommendations/hide-candidate", {
+        method: "POST",
+        body: { job_id: jobId, candidate_id: candidateId },
+        session,
+      });
+      // reload after hide to refetch top k
+      void loadData();
+    } catch (err) {
+      console.error("Failed to hide candidate", err);
+      alert("Failed to hide candidate");
+    }
   }
 
   return (
@@ -124,8 +153,8 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
           </Card>
         </div>
 
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground whitespace-nowrap">
             {t("recruiter.dashboard.display_top")}
           </p>
           <div className="flex flex-wrap items-center gap-4">
@@ -145,7 +174,7 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
                 {t("recruiter.dashboard.all")}
               </Button>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 border-r pr-4">
               {[5, 10, 20, 50].map((k) => (
                 <Button
                   key={k}
@@ -156,6 +185,27 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
                   Top {k}
                 </Button>
               ))}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="mr-1 text-xs text-muted-foreground whitespace-nowrap">
+                Min Match:
+              </span>
+              <Select
+                value={minScore === 0 ? "0" : minScore.toFixed(1)}
+                onValueChange={(val) => setMinScore(parseFloat(val || "0"))}
+              >
+                <SelectTrigger className="h-7 w-[75px] text-xs px-2">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">All</SelectItem>
+                  <SelectItem value="0.5">50%+</SelectItem>
+                  <SelectItem value="0.6">60%+</SelectItem>
+                  <SelectItem value="0.7">70%+</SelectItem>
+                  <SelectItem value="0.8">80%+</SelectItem>
+                  <SelectItem value="0.9">90%+</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -197,24 +247,31 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
                         <TableHead>{t("recruiter.dashboard.skill")}</TableHead>
                         <TableHead>{t("recruiter.dashboard.pref")}</TableHead>
                         <TableHead className="text-right">{t("recruiter.dashboard.score")}</TableHead>
+                        <TableHead className="w-12 text-center"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {job.recommendations.map((rec, idx) => (
-                        <TableRow key={`${job.job_id}-${rec.candidate_id}`}>
+                        <TableRow
+                          key={`${job.job_id}-${rec.candidate_id}`}
+                          className={cn(rec.final_score >= 0.8 && "bg-gradient-to-r from-indigo-500/10 via-transparent to-purple-500/5 hover:from-indigo-500/20 hover:to-purple-500/15")}
+                        >
                           <TableCell>
                             <Badge variant={idx === 0 ? "default" : "secondary"} className="text-xs">
                               #{idx + 1}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <button
-                              type="button"
-                              className="font-medium text-sm text-left hover:text-primary hover:underline"
-                              onClick={() => openCandidateDetail(job.title, rec)}
-                            >
-                              {rec.candidate_name || `Candidate ${rec.candidate_id}`}
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                className="font-medium text-sm text-left hover:text-primary hover:underline"
+                                onClick={() => openCandidateDetail(job.title, rec)}
+                              >
+                                {rec.candidate_name || `Candidate ${rec.candidate_id}`}
+                              </button>
+                              {rec.final_score >= 0.8 && <Star className="h-4 w-4 text-indigo-500 fill-indigo-500" />}
+                            </div>
                             <div className="flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
                               {rec.candidate_email && <span>{rec.candidate_email}</span>}
                               {rec.candidate_phone && <span>📞 {rec.candidate_phone}</span>}
@@ -250,6 +307,20 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
                           </TableCell>
                           <TableCell className="text-right">
                             <span className="text-sm font-bold">{(rec.final_score * 100).toFixed(0)}%</span>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleHideCandidate(job.job_id, rec.candidate_id);
+                              }}
+                              title="Hide candidate"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            >
+                              <EyeOff className="h-4 w-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -312,7 +383,26 @@ function RecruiterDashboardContent({ session }: { session: SessionData }) {
                     <DetailItem icon={<Phone className="h-4 w-4" />} label="Phone" value={selected.rec.candidate_phone || "—"} />
                     <DetailItem icon={<Calendar className="h-4 w-4" />} label="DOB" value={selected.rec.candidate_dob || "—"} />
                     <DetailItem icon={<Target className="h-4 w-4" />} label="Experience" value={selected.rec.experience_level || "—"} />
-                    <DetailItem icon={<Users className="h-4 w-4" />} label="Candidate ID" value={String(selected.rec.candidate_id)} />
+                    <DetailItem icon={<MapPin className="h-4 w-4" />} label="Location" value={selected.rec.candidate_location || "—"} />
+                  </div>
+                </div>
+
+                {selected.rec.candidate_bio && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold">About</h4>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selected.rec.candidate_bio}</p>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold">Job Preferences</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <DetailItem icon={<Briefcase className="h-4 w-4" />} label="Domains" value={selected.rec.preferred_domains || "Any"} />
+                    <DetailItem icon={<Building className="h-4 w-4" />} label="Work Mode" value={selected.rec.preferred_work_modes || "Any"} />
+                    <DetailItem icon={<Target className="h-4 w-4" />} label="Emp. Type" value={selected.rec.preferred_employment_types || "Any"} />
+                    <DetailItem icon={<DollarSign className="h-4 w-4" />} label="Min Salary" value={selected.rec.preferred_salary_min ? `$${selected.rec.preferred_salary_min}` : "Negotiable"} />
                   </div>
                 </div>
 

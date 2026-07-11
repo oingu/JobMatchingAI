@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import {
   DollarSign,
@@ -28,9 +28,12 @@ import {
   Monitor,
   Clock,
   BrainCircuit,
+  Bot,
+  GraduationCap,
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { MockInterviewDialog } from "@/components/mock-interview-dialog";
 import { RoleGuard } from "@/components/role-guard";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useUi } from "@/contexts/UiContext";
@@ -65,6 +68,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/toast";
 import { apiRequest, qs } from "@/lib/api";
 import type { SessionData } from "@/lib/auth";
+import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type SkillItem = { name: string; level: number };
 
@@ -231,8 +242,13 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
   const { glassMode } = useUi();
   const { success: toastSuccess, error: toastError } = useToast();
   const [items, setItems] = useState<FeedItem[]>([]);
-  const [topK, setTopK] = useState(10);
+  const [minScore, setMinScore] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const bottomBoundaryRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
   const [appliedJobs, setAppliedJobs] = useState<Set<number>>(new Set());
   const [savedJobs, setSavedJobs] = useState<Set<number>>(new Set());
@@ -244,6 +260,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
 
   const [analyzingGap, setAnalyzingGap] = useState(false);
   const [gapAnalysis, setGapAnalysis] = useState<any>(null);
+  const [mockInterviewOpen, setMockInterviewOpen] = useState(false);
 
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [applyJobId, setApplyJobId] = useState<number | null>(null);
@@ -252,22 +269,37 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
   const [applying, setApplying] = useState(false);
   const [expandedBriefJobs, setExpandedBriefJobs] = useState<Set<number>>(new Set());
 
-  async function load(k: number = topK) {
-    setError("");
-    setLoading(true);
+  async function load(reset: boolean = true, currentOffset: number = 0, m: number = minScore) {
+    if (reset) {
+      setLoading(true);
+      setError("");
+    } else {
+      setLoadingMore(true);
+    }
     try {
-      const query = qs({ top_k: k });
+      const query = qs({ top_k: 20, offset: currentOffset, min_score: m > 0 ? m : undefined });
       const res = await apiRequest<{
         candidate_id: number;
         items: FeedItem[];
       }>(`/feed/candidate/${session.userId}${query}`, { session });
-      setItems(res.data.items);
+      
+      const newItems = res.data.items;
+      setHasMore(newItems.length === 20);
+      
+      if (reset) {
+        setItems(newItems);
+      } else {
+        setItems((prev) => {
+          const existingIds = new Set(prev.map((i) => i.job_id));
+          const uniqueNew = newItems.filter((i) => !existingIds.has(i.job_id));
+          return [...prev, ...uniqueNew];
+        });
+      }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load recommendations.",
-      );
+      setError(err instanceof Error ? err.message : "Failed to load recommendations.");
     } finally {
-      setLoading(false);
+      if (reset) setLoading(false);
+      else setLoadingMore(false);
     }
   }
 
@@ -374,15 +406,38 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
   }
 
   useEffect(() => {
-    void load();
+    void load(true, 0, minScore);
     void loadAppliedJobs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleTopKChange(k: number) {
-    setTopK(k);
-    void load(k);
-  };
+  useEffect(() => {
+    if (loading || loadingMore || !hasMore) return;
+    if (observerRef.current) observerRef.current.disconnect();
+    
+    observerRef.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        const nextOffset = offset + 20;
+        setOffset(nextOffset);
+        void load(false, nextOffset, minScore);
+      }
+    }, { rootMargin: "200px" });
+    
+    if (bottomBoundaryRef.current) {
+      observerRef.current.observe(bottomBoundaryRef.current);
+    }
+    
+    return () => {
+      if (observerRef.current) observerRef.current.disconnect();
+    };
+  }, [loading, loadingMore, hasMore, offset, minScore]);
+
+  function handleMinScoreChange(val: number) {
+    setMinScore(val);
+    setOffset(0);
+    setHasMore(true);
+    void load(true, 0, val);
+  }
 
   const handleHideJob = async (jobId: number) => {
     if (!session?.userId) return;
@@ -434,21 +489,28 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                   : "No matching jobs found yet"}
             </p>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="mr-1 text-xs text-muted-foreground">
-              {t("feed.show_top") as string}
-            </span>
-            {TOP_K_OPTIONS.map((k) => (
-              <Button
-                key={k}
-                variant={topK === k ? "default" : "outline"}
-                size="sm"
-                className="h-7 px-2.5 text-xs"
-                onClick={() => handleTopKChange(k)}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="mr-1 text-xs text-muted-foreground whitespace-nowrap">
+                Min Match:
+              </span>
+              <Select
+                value={minScore === 0 ? "0" : minScore.toFixed(1)}
+                onValueChange={(val) => handleMinScoreChange(parseFloat(val || "0"))}
               >
-                {k}
-              </Button>
-            ))}
+                <SelectTrigger className="h-7 w-[75px] text-xs px-2">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">All</SelectItem>
+                  <SelectItem value="0.5">50%+</SelectItem>
+                  <SelectItem value="0.6">60%+</SelectItem>
+                  <SelectItem value="0.7">70%+</SelectItem>
+                  <SelectItem value="0.8">80%+</SelectItem>
+                  <SelectItem value="0.9">90%+</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -639,7 +701,7 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                             <Sparkles className="h-3 w-3 shrink-0" />
                             <span>
                               Matched: {item.matched_skills.slice(0, 3).join(", ")}
-                              {item.matched_skills.length > 3 && ` và ${item.matched_skills.length - 3} other skills`}
+                              {item.matched_skills.length > 3 && ` and ${item.matched_skills.length - 3} other skills`}
                             </span>
                           </p>
                         )}
@@ -769,6 +831,24 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
             })}
           </div>
         )}
+
+        {hasMore && (
+          <div ref={bottomBoundaryRef} className="h-20 flex items-center justify-center my-4">
+            {loadingMore && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary"></div>
+                <span className="text-sm font-medium">Đang tải thêm công việc...</span>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {!hasMore && items.length > 0 && (
+          <div className="text-center text-muted-foreground py-8 font-medium flex flex-col items-center gap-2">
+            <CheckCircle2 className="h-8 w-8 text-emerald-500/50" />
+            <span>Bạn đã xem hết các công việc phù hợp!</span>
+          </div>
+        )}
       </div>
 
       {/* Job Detail Sheet */}
@@ -829,18 +909,26 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                       ))}
                     </div>
                     <div className="mt-4 pt-4 border-t border-border/50">
-                      <Button
-                        variant="secondary"
-                        className="w-full text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20"
-                        onClick={handleAnalyzeGap}
-                        disabled={analyzingGap}
-                      >
-                        {analyzingGap ? (
-                          <><BrainCircuit className="mr-2 h-4 w-4 animate-pulse" /> {t("gap.analyzing")}</>
-                        ) : (
-                          <><BrainCircuit className="mr-2 h-4 w-4" /> {t("gap.analyze_btn")}</>
-                        )}
-                      </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant="secondary"
+                          className="w-full text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20"
+                          onClick={handleAnalyzeGap}
+                          disabled={analyzingGap}
+                        >
+                          {analyzingGap ? (
+                            <><BrainCircuit className="mr-2 h-4 w-4 animate-pulse" /> {t("gap.analyzing")}</>
+                          ) : (
+                            <><BrainCircuit className="mr-2 h-4 w-4" /> {t("gap.analyze_btn")}</>
+                          )}
+                        </Button>
+                        <Button
+                          className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-md shadow-indigo-500/20 border-0 transition-all duration-300"
+                          onClick={() => setMockInterviewOpen(true)}
+                        >
+                          <Bot className="mr-2 h-4 w-4" /> Mock Interview
+                        </Button>
+                      </div>
 
                       {gapAnalysis && (
                         <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
@@ -888,6 +976,26 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
                               ))}
                             </ol>
                           </div>
+
+                          {/* Recommended Courses */}
+                          {gapAnalysis.recommended_courses && gapAnalysis.recommended_courses.length > 0 && (
+                            <div className="space-y-2 bg-indigo-500/5 p-3 rounded-lg border border-indigo-500/20">
+                              <h5 className="text-xs font-semibold flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+                                <GraduationCap className="h-3 w-3" />
+                                Khoá học đề xuất (Gợi ý)
+                              </h5>
+                              <ul className="space-y-2 ml-1 mt-2">
+                                {gapAnalysis.recommended_courses.map((course: any, i: number) => (
+                                  <li key={i} className="text-[11px] flex items-start gap-1.5">
+                                    <span className="text-indigo-500 mt-0.5">▶</span>
+                                    <a href={course.link} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline hover:text-indigo-700 font-medium line-clamp-2">
+                                      {course.title}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1091,6 +1199,15 @@ function CandidateFeedContent({ session }: { session: SessionData }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {detailJob && (
+        <MockInterviewDialog
+          jobId={detailJob.id}
+          isOpen={mockInterviewOpen}
+          onClose={() => setMockInterviewOpen(false)}
+          session={session}
+        />
+      )}
     </AppShell>
   );
 }
